@@ -1,0 +1,15 @@
+[
+  {"date": "2019-07-25", "label": "TCMB −425 bp", "label_en": "CBRT −425 bp"},
+  {"date": "2020-03-16", "label": "COVID-19", "label_en": "COVID-19"},
+  {"date": "2021-09-23", "label": "Faiz indirimleri", "label_en": "Rate cuts"},
+  {"date": "2021-12-20", "label": "KKM", "label_en": "KKM"},
+  {"date": "2023-06-22", "label": "Parasal sıkılaştırma", "label_en": "Monetary tightening"},
+  {"date": "2026-03-01", "label": "Repo ihalelerine ara", "label_en": "Repo auctions paused"},
+  {"date": "2022-03-16", "label": "Fed artırımları", "label_en": "Fed hikes begin", "cur": ["USD"]},
+  {"date": "2026-09-16", "label": "Fed artırımı", "label_en": "Fed hike", "cur": ["USD"]},
+  {"date": "2022-07-21", "label": "ECB negatif faizden çıkış", "label_en": "ECB exits negative rates", "cur": ["EUR"]},
+  {"date": "2026-06-11", "label": "ECB artırımı", "label_en": "ECB hike", "cur": ["EUR"]},
+  {"date": "2022-09-23", "label": "Mini bütçe", "label_en": "UK mini-budget", "cur": ["GBP"]},
+  {"date": "2024-03-19", "label": "BoJ negatif faizden çıkış", "label_en": "BoJ exits negative rates", "cur": ["JPY"]},
+  {"date": "2024-08-05", "label": "Yen carry çözülmesi", "label_en": "Yen carry unwind", "cur": ["JPY"]}
+]
