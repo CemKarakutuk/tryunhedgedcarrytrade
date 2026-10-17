@@ -1,6 +1,6 @@
 # Global Unhedged TRY Carry Trade
 
-**Live site: [cemkarakutuk.github.io/tlref](https://cemkarakutuk.github.io/tlref/)** · Türkçe ve İngilizce · *Site is bilingual (TR/EN); use the language button in the top-right corner.*
+Türkçe ve İngilizce · *Site is bilingual (TR/EN); use the language button in the top-right corner.*
 
 An interactive, open-data study of the classic carry trade into the Turkish lira: borrow overnight in **New York (SOFR)**, **Frankfurt (€STR)**, **London (SONIA)** or **Tokyo (TONA)**, convert into lira, and earn the lira overnight reference rate **TLREF**. Daily, from 2 January 2019 (€STR from 1 October 2019) to the present.
 
