@@ -305,11 +305,11 @@
     $("cards").innerHTML =
       card(L(`Carry getirisi (${code})`, `Carry return (${code})`), pct(p.r, 2),
         L(`Yıllıklandırılmış ${pct(annualize(p.r, days), 2)}`, `Annualised ${pct(annualize(p.r, days), 2)}`), cls(p.r), true) +
-      card(L("Kâr / zarar", "Profit / loss"), `${pnl >= 0 ? "+" : "−"}${nf(Math.abs(pnl))} ${code}`,
-        L(`Kapanışta ${nf(back)} ${code} − borç ${nf(debt)} ${code}`, `${nf(back)} ${code} at close − debt ${nf(debt)} ${code}`), cls(pnl)) +
+      card(L("Brüt K/Z", "Gross P&L"), `${pnl >= 0 ? "+" : "−"}${nf(Math.abs(pnl))} ${code}`,
+        L(`Döviz karşılığı ${nf(back)} ${code} − borç bakiyesi ${nf(debt)} ${code}`, `FX equivalent ${nf(back)} ${code} − outstanding debt ${nf(debt)} ${code}`), cls(pnl)) +
       card(L("TL bakiye", "TL balance"), `${nf(tl1)} TL`,
         L(`${nf(tl0)} TL → TL getirisi ${pct(p.gtl - 1, 2)}`, `${nf(tl0)} TL → TL return ${pct(p.gtl - 1, 2)}`)) +
-      card(L(`Borç (${c.rate})`, `Debt (${c.rate})`), `${nf(debt)} ${code}`,
+      card(L(`Borç bakiyesi (${c.rate})`, `Outstanding debt (${c.rate})`), `${nf(debt)} ${code}`,
         L(`Fonlama maliyeti ${pct(p.gf - 1, 3)}`, `Funding cost ${pct(p.gf - 1, 3)}`)) +
       card(L(`Kur (${code}/TRY)`, `Exchange rate (${code}/TRY)`), pct(p.fx, 2), `${nf(p.ent, dp)} → ${nf(p.ext, dp)}`) +
       card(L("Dönem", "Period"), `${nf(days)} ${L("gün", "days")}`, `${fdate(S.dates[i])} → ${fdate(S.dates[j])}`);
@@ -331,8 +331,8 @@
     S.calcRows = rows;
     const head = `<thead><tr><th>${L("Tarih", "Date")}</th><th>${L("Gün", "Day")}</th><th>TLREF</th><th>${c.rate}</th>` +
       `<th>${L("Alış", "Buy")}</th><th>${L("Satış", "Sell")}</th><th>${L("TL bakiye", "TL balance")}</th>` +
-      `<th>${L(`Dövize çevrilirse (${code})`, `If converted (${code})`)}</th><th>${L(`Borç (${code})`, `Debt (${code})`)}</th>` +
-      `<th>${L(`Kâr / zarar (${code})`, `Profit / loss (${code})`)}</th><th>${L("Getiri", "Return")}</th></tr></thead>`;
+      `<th>${L(`Döviz karşılığı (${code})`, `FX equivalent (${code})`)}</th><th>${L(`Borç bakiyesi (${code})`, `Outstanding debt (${code})`)}</th>` +
+      `<th>${L(`Brüt K/Z (${code})`, `Gross P&L (${code})`)}</th><th>${L("Kümülatif getiri", "Cumulative return")}</th></tr></thead>`;
     const body = rows.map((r) => `<tr><td>${fdate(r.date)}</td><td>${nf(r.day)}</td><td>${rate(r.tlRate)}</td><td>${rate(r.fRate, 3)}</td>` +
       `<td>${nf(r.buy, dp)}</td><td>${nf(r.sell, dp)}</td><td>${nf(r.tlBal)}</td><td>${nf(r.value)}</td><td>${nf(r.debt)}</td>` +
       `<td class="${cls(r.pnl)}">${nf(r.pnl)}</td><td class="${cls(r.r)}">${r.r == null ? "–" : pct(r.r, 2)}</td></tr>`).join("");
@@ -362,8 +362,8 @@
   function dlCalc() {
     const k = cfg(), c = S.data.cur[k.cur], rows = S.calcRows || [];
     const head = isEN()
-      ? ["Date", "Day", "TLREF (%)", `${c.rate} (%)`, `${k.cur}TRY buy`, `${k.cur}TRY sell`, "TL balance", `If converted (${k.cur})`, `Debt (${k.cur})`, `Profit/loss (${k.cur})`, "Return (%)"]
-      : ["Tarih", "Gün", "TLREF (%)", `${c.rate} (%)`, `${k.cur}TRY alış`, `${k.cur}TRY satış`, "TL bakiye", `Dövize çevrilirse (${k.cur})`, `Borç (${k.cur})`, `Kâr/zarar (${k.cur})`, "Getiri (%)"];
+      ? ["Date", "Day", "TLREF (%)", `${c.rate} (%)`, `${k.cur}TRY buy`, `${k.cur}TRY sell`, "TL balance", `FX equivalent (${k.cur})`, `Outstanding debt (${k.cur})`, `Gross P&L (${k.cur})`, "Cumulative return (%)"]
+      : ["Tarih", "Gün", "TLREF (%)", `${c.rate} (%)`, `${k.cur}TRY alış`, `${k.cur}TRY satış`, "TL bakiye", `Döviz karşılığı (${k.cur})`, `Borç bakiyesi (${k.cur})`, `Brüt K/Z (${k.cur})`, "Kümülatif getiri (%)"];
     const out = rows.map((r) => [r.date, r.day, f(r.tlRate, 4), f(r.fRate, 4), f(r.buy, 6), f(r.sell, 6), f(r.tlBal, 2), f(r.value, 2), f(r.debt, 2), f(r.pnl, 2), f(r.r == null ? null : r.r * 100, 4)]);
     download(`tlref_carry_${k.cur}_${rows.length ? rows[0].date : ""}_${$("cDays").value}${L("gun", "d")}.csv`, head, out);
   }
