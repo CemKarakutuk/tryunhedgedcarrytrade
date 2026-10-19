@@ -12,12 +12,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/styles.css?v=4">
+<link rel="stylesheet" href="assets/css/styles.css?v=5">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
 <!--PLOTLY-->
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <script>window.Plotly || document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.2/plotly.min.js"><\/script>')</script>
 <!--/PLOTLY-->
+<script>window.MathJax = { tex: { inlineMath: [["\\(", "\\)"]], displayMath: [["\\[", "\\]"]] }, svg: { fontCache: "global" }, options: { enableMenu: false } };</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js"></script>
 </head>
 <body>
 
@@ -47,6 +49,18 @@
     <label class="ctl">
       <span class="ctl-label"><span data-lang="tr">Vade (gün)</span><span data-lang="en">Holding period (days)</span></span>
       <input id="days" class="days" type="number" min="1" max="2500" step="1" value="365">
+    </label>
+    <label class="ctl">
+      <span class="ctl-label"><span data-lang="tr">Borçlanma marjı</span><span data-lang="en">Borrowing margin</span></span>
+      <select id="margin">
+        <option value="0" data-tr="Yok (referans faiz)" data-en="None (reference rate)">Yok (referans faiz)</option>
+        <option value="25" data-tr="+25 bps" data-en="+25 bps">+25 bps</option>
+        <option value="50" data-tr="+50 bps" data-en="+50 bps">+50 bps</option>
+        <option value="100" data-tr="+100 bps" data-en="+100 bps">+100 bps</option>
+        <option value="150" data-tr="+150 bps" data-en="+150 bps">+150 bps</option>
+        <option value="250" data-tr="+250 bps" data-en="+250 bps">+250 bps</option>
+        <option value="300" data-tr="+300 bps" data-en="+300 bps">+300 bps</option>
+      </select>
     </label>
     <div class="ctl checks">
       <span class="ctl-label"><span data-lang="tr">Gösterim</span><span data-lang="en">Display</span></span>
@@ -102,28 +116,186 @@
   </section>
 
   <section class="block prose" id="yontem">
-    <h2><span class="num">3</span><span data-lang="tr">Yöntem</span><span data-lang="en">Methodology</span></h2>
+    <h2><span class="num">3</span><span data-lang="tr">Metodoloji</span><span data-lang="en">Methodology</span></h2>
     <div class="cols">
       <div>
-        <h3><span data-lang="tr">Carry trade getirisi</span><span data-lang="en">Carry trade return</span></h3>
-        <p data-lang="tr">Yatırımcı açılış günü döviz borçlanır, dövizi TCMB döviz alış kuruyla bozdurur ve Türk lirasını TLREF ile gecelik değerlendirir. Borç her gece fonlama faiziyle, TL bakiye her gece TLREF ile büyür. Vade sonunda TL bakiye döviz satış kuruyla dövize çevrilir ve birikmiş borç ödenir. Kalan tutarın borçlanılan anaparaya oranı brüt getiridir.</p>
-        <p data-lang="en">On the opening day the investor borrows foreign currency, sells it at the CBRT buying rate and places the lira overnight at TLREF. The debt grows every night at the funding rate and the TL balance at TLREF. At the end of the holding period the TL balance is converted back at the selling rate and the accrued debt is repaid. What remains, relative to the principal borrowed, is the gross return.</p>
-        <div class="formula">R = A(t₀) × [I_TL(t) ÷ I_TL(t₀)] ÷ S(t) − I_F(t) ÷ I_F(t₀)</div>
-        <h3><span data-lang="tr">Gecelik faiz birikimi</span><span data-lang="en">Overnight accrual</span></h3>
-        <p data-lang="tr">Her referans faiz ait olduğu işlem tarihinden bir sonraki işlem tarihine kadar geçerlidir; hafta sonu ve tatillerde son oran takvim günü sayısı kadar işler. SOFR, €STR, SONIA ve TONA ertesi iş günü yayımlandığından hesapta yayım tarihi değil, oranın ait olduğu işlem tarihi esas alınır. I, bu şekilde gecelik bileşiklenen birikim endeksidir. Gün sayımı TLREF, SONIA ve TONA için ACT/365, SOFR ve €STR için ACT/360'tır.</p>
-        <p data-lang="en">Each reference rate applies from the trade date it refers to until the next trade date; over weekends and holidays the last rate accrues for the number of calendar days. SOFR, €STR, SONIA and TONA are published on the following business day, so the calculation uses the trade date each rate refers to, not its publication date. I is the resulting overnight-compounded accrual index. Day count is ACT/365 for TLREF, SONIA and TONA and ACT/360 for SOFR and €STR.</p>
-        <div class="formula">I(dᵢ₊₁) = I(dᵢ) × (1 + rᵢ × gün ÷ B)</div>
+        <h3><span data-lang="tr">Carry Trade Getirisinin Hesaplanması</span><span data-lang="en">Calculating the Carry Trade Return</span></h3>
+        <div data-lang="tr">
+          <p>Bu model, yabancı para borçlanılarak Türk lirasına yatırım yapılan, kur riskinden korunmasız (unhedged) bir carry trade stratejisinin tarihsel getirilerini hesaplar.</p>
+          <p>Yatırımcı, açılış tarihinde yabancı para borçlanır ve TCMB döviz alış kurundan TL'ye çevirir. TL bakiye TLREF üzerinden faiz kazanırken yabancı para borcu da ilgili gecelik referans faiz ve seçilen borçlanma marjıyla büyür. Vade sonunda TL bakiye döviz satış kurundan yabancı paraya çevrilir ve birikmiş borç geri ödenir.</p>
+          <p>Borçlanma maliyeti sonrası teorik getiri:</p>
+        </div>
+        <div data-lang="en">
+          <p>This model calculates the historical returns of an unhedged carry trade strategy in which foreign currency is borrowed and invested in Turkish lira.</p>
+          <p>On the opening date the investor borrows foreign currency and converts it into TL at the CBRT foreign exchange buying rate. While the TL balance earns interest at TLREF, the foreign currency debt grows at the relevant overnight reference rate plus the selected borrowing margin. At maturity the TL balance is converted back into foreign currency at the selling rate and the accrued debt is repaid.</p>
+          <p>Theoretical return after borrowing cost:</p>
+        </div>
+        <div class="math">\[ R(t_0,t)=\frac{A(t_0)}{S(t)}\times\frac{I_{TL}(t)}{I_{TL}(t_0)}-\frac{I_{F,m}(t)}{I_{F,m}(t_0)} \]</div>
+        <ul class="vars" data-lang="tr">
+          <li>\(R\): Borçlanma maliyeti sonrası dönemsel getiri.</li>
+          <li>\(t_0,\ t\): Açılış ve kapanış tarihleri.</li>
+          <li>\(A(t_0)\): Açılış tarihindeki döviz alış kuru.</li>
+          <li>\(S(t)\): Kapanış tarihindeki döviz satış kuru.</li>
+          <li>\(I_{TL}\): TLREF bileşik faiz birikim endeksi.</li>
+          <li>\(I_{F,m}\): Borçlanma marjı dahil yabancı para faiz birikim endeksi.</li>
+        </ul>
+        <ul class="vars" data-lang="en">
+          <li>\(R\): Period return after borrowing cost.</li>
+          <li>\(t_0,\ t\): Opening and closing dates.</li>
+          <li>\(A(t_0)\): Foreign exchange buying rate on the opening date.</li>
+          <li>\(S(t)\): Foreign exchange selling rate on the closing date.</li>
+          <li>\(I_{TL}\): TLREF compounded accrual index.</li>
+          <li>\(I_{F,m}\): Foreign currency accrual index including the borrowing margin.</li>
+        </ul>
+        <div data-lang="tr">
+          <p>Endekslerin kapanış ve açılış değerleri arasındaki oran, ilgili dönemin birikim katsayısını gösterir.</p>
+          <p>Getiri, yabancı para borcunun anapara ve birikmiş faizinin geri ödenmesinden sonra kalan tutarın başlangıçta borçlanılan anaparaya oranıdır. <strong>Özkaynak getirisi (ROE) değildir.</strong> İşlem ücretleri, vergiler ve diğer uygulama maliyetleri dahil edilmemiştir.</p>
+        </div>
+        <div data-lang="en">
+          <p>The ratio of an index's closing value to its opening value gives the accrual factor for the period.</p>
+          <p>The return is the amount remaining after repaying the principal and accrued interest on the foreign currency debt, divided by the principal originally borrowed. <strong>It is not a return on equity (ROE).</strong> Transaction fees, taxes and other implementation costs are not included.</p>
+        </div>
+
+        <h3><span data-lang="tr">Gecelik Faiz Birikimi</span><span data-lang="en">Overnight Interest Accrual</span></h3>
+        <div data-lang="tr">
+          <p>Modelde TLREF (TRY), SOFR (USD), €STR (EUR), SONIA (GBP) ve TONA (JPY) kullanılır.</p>
+          <p>Her faiz oranı, ait olduğu işlem tarihinden sonraki işlem tarihine kadar geçerlidir. Hafta sonları ve tatillerde son geçerli oran, aradaki takvim günü sayısı kadar uygulanır.</p>
+        </div>
+        <div data-lang="en">
+          <p>The model uses TLREF (TRY), SOFR (USD), €STR (EUR), SONIA (GBP) and TONA (JPY).</p>
+          <p>Each rate applies from the trade date it refers to until the next trade date. Over weekends and holidays the last applicable rate is applied for the number of calendar days in between.</p>
+        </div>
+        <div class="math">\[ I(d_{i+1})=I(d_i)\left(1+\frac{r_i}{100}\times\frac{\Delta d_i}{B}\right) \]</div>
+        <ul class="vars" data-lang="tr">
+          <li>\(I(d_i)\): Dönem başındaki faiz birikim endeksi.</li>
+          <li>\(I(d_{i+1})\): Dönem sonundaki faiz birikim endeksi.</li>
+          <li>\(r_i\): Yıllık referans faiz oranı (%).</li>
+          <li>\(\Delta d_i\): İki işlem tarihi arasındaki takvim günü sayısı.</li>
+          <li>\(B\): Yıllık gün sayım bazı (360 veya 365).</li>
+        </ul>
+        <ul class="vars" data-lang="en">
+          <li>\(I(d_i)\): Accrual index at the start of the period.</li>
+          <li>\(I(d_{i+1})\): Accrual index at the end of the period.</li>
+          <li>\(r_i\): Annual reference rate (%).</li>
+          <li>\(\Delta d_i\): Number of calendar days between two trade dates.</li>
+          <li>\(B\): Annual day-count basis (360 or 365).</li>
+        </ul>
+        <p data-lang="tr">Her dönemde basit faiz uygulanır; dönemlerin birikim katsayıları çarpılarak bileşik faiz hesaplanır.</p>
+        <p data-lang="en">Simple interest is applied within each period; compound interest is obtained by multiplying the periods' accrual factors.</p>
+        <div class="scroll"><table class="compact">
+          <thead><tr><th><span data-lang="tr">Referans faiz</span><span data-lang="en">Reference rate</span></th><th><span data-lang="tr">Para birimi</span><span data-lang="en">Currency</span></th><th><span data-lang="tr">Gün sayımı</span><span data-lang="en">Day count</span></th></tr></thead>
+          <tbody>
+            <tr><td>TLREF</td><td>TRY</td><td>ACT/365</td></tr>
+            <tr><td>SOFR</td><td>USD</td><td>ACT/360</td></tr>
+            <tr><td>€STR</td><td>EUR</td><td>ACT/360</td></tr>
+            <tr><td>SONIA</td><td>GBP</td><td>ACT/365</td></tr>
+            <tr><td>TONA</td><td>JPY</td><td>ACT/365</td></tr>
+          </tbody>
+        </table></div>
+
+        <h3><span data-lang="tr">Borçlanma Marjı</span><span data-lang="en">Borrowing Margin</span></h3>
+        <div data-lang="tr">
+          <p>Gecelik referans faizler, yatırımcıların gerçek borçlanma maliyetlerini doğrudan göstermez. Bu nedenle model, yabancı para fonlama faizine sabit bir borçlanma marjı eklenmesine izin verir.</p>
+          <p>Marj dahil yıllık fonlama faizi:</p>
+        </div>
+        <div data-lang="en">
+          <p>Overnight reference rates do not directly show investors' actual borrowing costs. The model therefore allows a fixed borrowing margin to be added to the foreign currency funding rate.</p>
+          <p>Annual funding rate including the margin:</p>
+        </div>
+        <div class="math">\[ r_{F,i}=r_{\mathrm{ref},i}+\frac{m}{100} \]</div>
+        <ul class="vars" data-lang="tr">
+          <li>\(r_{F,i}\): Marj dahil yıllık fonlama faizi (%).</li>
+          <li>\(r_{\mathrm{ref},i}\): İlgili gecelik referans faiz (%).</li>
+          <li>\(m\): Borçlanma marjı (baz puan, bps).</li>
+        </ul>
+        <ul class="vars" data-lang="en">
+          <li>\(r_{F,i}\): Annual funding rate including the margin (%).</li>
+          <li>\(r_{\mathrm{ref},i}\): The relevant overnight reference rate (%).</li>
+          <li>\(m\): Borrowing margin (basis points, bp).</li>
+        </ul>
+        <p data-lang="tr">Marj dahil fonlama endeksi:</p>
+        <p data-lang="en">Funding index including the margin:</p>
+        <div class="math">\[ I_{F,m}(d_{i+1})=I_{F,m}(d_i)\left(1+\frac{r_{F,i}}{100}\times\frac{\Delta d_i}{B_F}\right) \]</div>
+        <ul class="vars" data-lang="tr">
+          <li>\(I_{F,m}\): Marj dahil yabancı para fonlama endeksi.</li>
+          <li>\(\Delta d_i\): Geçen takvim günü sayısı.</li>
+          <li>\(B_F\): Yabancı para faizinin gün sayım bazı.</li>
+        </ul>
+        <ul class="vars" data-lang="en">
+          <li>\(I_{F,m}\): Foreign currency funding index including the margin.</li>
+          <li>\(\Delta d_i\): Number of calendar days elapsed.</li>
+          <li>\(B_F\): Day-count basis of the foreign currency rate.</li>
+        </ul>
+        <div data-lang="tr">
+          <p><strong>Marj seçenekleri:</strong> 0, +25, +50, +100, +150, +250 ve +300 bps.</p>
+          <p>Varsayılan marj <strong>0 bps</strong>'dir. Marj değiştirildiğinde tüm getiriler, grafikler ve tablolar yeniden hesaplanır. Seçenekler farklı fonlama maliyetlerini karşılaştırmak içindir; belirli kurumların gerçek borçlanma faizlerini temsil etmez.</p>
+          <p>Negatif faizlere sıfır alt sınırı uygulanmaz. Örneğin €STR −%0,58 ve marj +50 bps ise fonlama faizi −%0,08 olur.</p>
+        </div>
+        <div data-lang="en">
+          <p><strong>Margin options:</strong> 0, +25, +50, +100, +150, +250 and +300 bp.</p>
+          <p>The default margin is <strong>0 bp</strong>. When the margin is changed, all returns, charts and tables are recalculated. The options are for comparing different funding costs; they do not represent the actual borrowing rates of specific institutions.</p>
+          <p>No zero floor is applied to negative rates. For example, if €STR is −0.58% and the margin is +50 bp, the funding rate is −0.08%.</p>
+        </div>
       </div>
       <div>
-        <h3><span data-lang="tr">Kur ve makas</span><span data-lang="en">Exchange rate and spread</span></h3>
-        <p data-lang="tr">Kur makası açıkken giriş TCMB döviz alış, çıkış döviz satış kuruyla yapılır; kapalıyken iki uçta da orta kur kullanılır.</p>
-        <p data-lang="en">With the FX spread enabled, entry uses the CBRT buying rate and exit the selling rate; when disabled, the mid rate is used at both ends.</p>
-        <h3><span data-lang="tr">Vade</span><span data-lang="en">Holding period</span></h3>
-        <p data-lang="tr">Vade sonu, açılıştan girilen gün sayısı kadar sonraki ilk değerleme günüdür; hafta sonu ve tatillerde gerçekleşen gün sayısı birkaç gün uzayabilir ve tabloda ayrıca gösterilir. Getiri bu süre için verilir.</p>
-        <p data-lang="en">The closing day is the first valuation day at least the entered number of days after opening; around weekends and holidays the actual day count can be a few days longer and is shown in the table. The return is for that period.</p>
+        <h3><span data-lang="tr">Döviz Kurları, Makas ve Kur Riski</span><span data-lang="en">Exchange Rates, Spread and Currency Risk</span></h3>
+        <div data-lang="tr">
+          <p>Modelde TCMB'nin USD/TRY, EUR/TRY, GBP/TRY ve JPY/TRY gösterge spot kurları kullanılır. JPY kurları 100 yen üzerinden yayımlandığından hesaplamada 100'e bölünür.</p>
+          <p><strong>Kur makası açıkken</strong> girişte döviz alış, çıkışta döviz satış kuru kullanılır. <strong>Kur makası kapalıyken</strong> her iki tarihte de orta kur kullanılır.</p>
+        </div>
+        <div data-lang="en">
+          <p>The model uses the CBRT's indicative spot rates for USD/TRY, EUR/TRY, GBP/TRY and JPY/TRY. Because JPY rates are published per 100 yen, they are divided by 100 in the calculation.</p>
+          <p><strong>With the FX spread enabled</strong>, the buying rate is used at entry and the selling rate at exit. <strong>With the FX spread disabled</strong>, the mid rate is used on both dates.</p>
+        </div>
+        <div class="math">\[ M(t)=\frac{A(t)+S(t)}{2} \]</div>
+        <p data-lang="tr">Burada \(M(t)\) orta kur, \(A(t)\) alış kuru, \(S(t)\) satış kurudur.</p>
+        <p data-lang="en">Here \(M(t)\) is the mid rate, \(A(t)\) the buying rate and \(S(t)\) the selling rate.</p>
+        <p data-lang="tr">Makas kapalıyken getiri:</p>
+        <p data-lang="en">Return with the spread disabled:</p>
+        <div class="math">\[ R_{\mathrm{mid}}(t_0,t)=\frac{M(t_0)}{M(t)}\times\frac{I_{TL}(t)}{I_{TL}(t_0)}-\frac{I_{F,m}(t)}{I_{F,m}(t_0)} \]</div>
+        <div data-lang="tr">
+          <p>\(R_{\mathrm{mid}}\), alış-satış makası hariç teorik getiridir. Diğer değişkenler ilk getiri formülüyle aynıdır.</p>
+          <p><strong>Strateji neden unhedged?</strong></p>
+          <p>Modelde yalnızca spot döviz kurları kullanılır. Yatırımcı girişte dövizini TL'ye çevirir, çıkışta ise o günün spot kurundan yeniden döviz alır. Çıkış kuru önceden sabitlenmediği için yatırımcı kur riskini taşır.</p>
+          <p>FX forward, gelecekteki döviz dönüşüm kurunu önceden belirler. FX swap ise farklı tarihlerde gerçekleşen iki bağlantılı döviz değişiminden oluşur. Bu işlemler uygun şekilde kullanıldığında kur riskinden korunma sağlayabilir.</p>
+          <p><strong>Bu modelde FX forward veya FX swap kullanılmaz.</strong> Dolayısıyla hesaplanan getiriler hedge edilmiş carry trade getirileri değildir. Offshore FX swap piyasasındaki swap-implied faizler ve likidite koşulları da modele dahil değildir.</p>
+        </div>
+        <div data-lang="en">
+          <p>\(R_{\mathrm{mid}}\) is the theoretical return excluding the buying-selling spread. The other variables are the same as in the first return formula.</p>
+          <p><strong>Why is the strategy unhedged?</strong></p>
+          <p>The model uses only spot exchange rates. The investor converts foreign currency into TL at entry and buys foreign currency back at that day's spot rate at exit. Because the exit rate is not fixed in advance, the investor bears currency risk.</p>
+          <p>An FX forward fixes the rate of a future currency conversion in advance. An FX swap consists of two linked currency exchanges on different dates. Used appropriately, these transactions can provide protection against currency risk.</p>
+          <p><strong>This model does not use FX forwards or FX swaps.</strong> The calculated returns are therefore not hedged carry trade returns. Swap-implied rates and liquidity conditions in the offshore FX swap market are not included in the model either.</p>
+        </div>
+
+        <h3><span data-lang="tr">Vade ve Değerleme</span><span data-lang="en">Holding Period and Valuation</span></h3>
+        <div data-lang="tr">
+          <p>Kullanıcı başlangıç tarihini ve hedef vadeyi seçer. Kapanış, hedef vadenin dolduğu gün veya sonrasındaki ilk mevcut değerleme tarihinde yapılır.</p>
+          <p>Hafta sonları ve tatiller nedeniyle gerçekleşen vade uzayabilir. Hesaplamalarda gerçek takvim günü sayısı kullanılır.</p>
+        </div>
+        <div data-lang="en">
+          <p>The user selects the opening date and the target holding period. The position is closed on the day the target period ends or on the first available valuation date after it.</p>
+          <p>Because of weekends and holidays the actual holding period can be longer. Calculations use the actual number of calendar days.</p>
+        </div>
+        <div class="math">\[ n=t-t_0 \]</div>
+        <p data-lang="tr">Burada \(n\), açılış ve kapanış arasında geçen takvim günü sayısıdır.</p>
+        <p data-lang="en">Here \(n\) is the number of calendar days between opening and closing.</p>
+        <p data-lang="tr">Farklı başlangıç tarihlerine aynı vade uygulanarak kayan vadeli (rolling) tarihsel getiri serileri oluşturulur.</p>
+        <p data-lang="en">Applying the same holding period to different opening dates produces rolling historical return series.</p>
+
         <h3><span data-lang="tr">Sınırlılıklar</span><span data-lang="en">Limitations</span></h3>
-        <p data-lang="tr">Bu çalışma, gecelik referans faizlere dayalı teorik ve kur riskinden korunmasız (unhedged) bir carry trade simülasyonudur. SOFR, SONIA, €STR ve TONA, kurumların gerçek borçlanma maliyetlerini doğrudan yansıtmaz; kuruma özgü fonlama spread'leri, işlem ücretleri, vergiler, teminat ve likidite kısıtları modele dahil edilmemiştir. Döviz dönüşümlerinde kullanılan TCMB gösterge alış-satış kurları, gerçekleştirilebilir piyasa kotasyonları değildir. Model, faizlerin ilgili işlem tarihlerine göre tahakkuk ettiğini varsayar; verilerin yayımlanma saatleri ve gerçek zamanlı işlem imkânları dikkate alınmaz. Ayrıca kayan vadeli (rolling) getiriler örtüşen dönemler içerdiğinden gözlemler birbirinden bağımsız değildir. Bu nedenle sonuçlar, fiilen elde edilebilir yatırım getirileri olarak değil, tarihsel referans faiz ve döviz kuru hareketlerinin teorik etkileri olarak değerlendirilmelidir.</p>
-        <p data-lang="en">This study is a theoretical, unhedged carry trade simulation based on overnight reference rates. SOFR, SONIA, €STR and TONA do not directly reflect institutions' actual borrowing costs; institution-specific funding spreads, transaction fees, taxes, collateral and liquidity constraints are not included in the model. The CBRT indicative buying and selling rates used for currency conversion are not executable market quotes. The model assumes that interest accrues according to the relevant trade dates; data publication times and real-time trading possibilities are not taken into account. In addition, because rolling-period returns contain overlapping periods, the observations are not independent of one another. The results should therefore be read not as investment returns that could actually have been achieved, but as the theoretical effects of historical reference rate and exchange rate movements.</p>
+        <div data-lang="tr">
+          <p>Bu çalışma, gecelik referans faizler ve TCMB gösterge spot kurlarıyla oluşturulmuş teorik bir unhedged carry trade simülasyonudur.</p>
+          <p>Referans faizler gerçek borçlanma maliyetlerini, TCMB gösterge kurları ise gerçekleştirilebilir işlem fiyatlarını doğrudan yansıtmaz. Borçlanma marjı varsayımsaldır; işlem ücretleri, vergiler, teminat gereksinimleri ve likidite kısıtları modele dahil değildir.</p>
+          <p>Faizler ait oldukları işlem tarihlerine göre hesaplanır; verilerin yayımlanma saatleri ve gerçek zamanlı işlem imkânları dikkate alınmaz. Rolling getiriler örtüşen dönemler içerdiğinden gözlemler bağımsız değildir.</p>
+          <p><strong>Sonuçlar, fiilen elde edilebilir yatırım getirileri değil; faiz, kur ve fonlama maliyetlerinin tarihsel carry trade performansı üzerindeki teorik etkileridir.</strong></p>
+        </div>
+        <div data-lang="en">
+          <p>This study is a theoretical unhedged carry trade simulation built from overnight reference rates and CBRT indicative spot rates.</p>
+          <p>Reference rates do not directly reflect actual borrowing costs, and CBRT indicative rates do not directly reflect executable transaction prices. The borrowing margin is hypothetical; transaction fees, taxes, collateral requirements and liquidity constraints are not included in the model.</p>
+          <p>Interest is calculated according to the trade dates it refers to; data publication times and real-time trading possibilities are not taken into account. Because rolling returns contain overlapping periods, the observations are not independent.</p>
+          <p><strong>The results are not investment returns that could actually have been achieved; they are the theoretical effects of interest rates, exchange rates and funding costs on historical carry trade performance.</strong></p>
+        </div>
       </div>
     </div>
   </section>
@@ -157,6 +329,6 @@
 </footer>
 
 <!--DATA-->
-<script src="assets/js/app.js?v=4"></script>
+<script src="assets/js/app.js?v=5"></script>
 </body>
 </html>
