@@ -39,12 +39,22 @@ FUNDING = {
 TL_BASIS = 365  # TLREF: ACT/365
 
 
-def find(prefix: str) -> Path:
+def find_all(prefix: str) -> list[Path]:
     hits = sorted(p for p in RAW.iterdir()
                   if p.name.lower().startswith(prefix) and p.suffix.lower() in (".xlsx", ".xls", ".csv"))
     if not hits:
         sys.exit(f"data/raw içinde '{prefix}' ile başlayan dosya bulunamadı.")
-    return hits[-1]
+    return hits
+
+
+def pick_file(prefix: str) -> Path:
+    """Aynı adla başlayan birden fazla dosya varsa (ör. sonia.xlsx ve sonia.csv) .xlsx dosyası kullanılır."""
+    hits = find_all(prefix)
+    order = {".xlsx": 0, ".xls": 1, ".csv": 2}
+    chosen = sorted(hits, key=lambda p: (order.get(p.suffix.lower(), 9), p.name))[0]
+    if len(hits) > 1:
+        print(f"  uyarı: '{prefix}' için {len(hits)} dosya var ({', '.join(h.name for h in hits)}); {chosen.name} kullanıldı.")
+    return chosen
 
 
 def read_any(p: Path, **kw) -> pd.DataFrame:
@@ -140,14 +150,16 @@ def last_fix(fix: pd.Series, at: pd.DatetimeIndex) -> pd.Series:
 
 
 def main() -> None:
-    files = {k: find(k) for k in ["evds", "sofr", "estr", "sonia", "tona"]}
-    ev = read_evds(files["evds"])
+    readers = {"evds": read_evds, "sofr": read_sofr, "estr": read_estr, "sonia": read_sonia, "tona": read_tona}
+    files = {k: pick_file(k) for k in readers}
+    loaded = {k: reader(files[k]) for k, reader in readers.items()}
+    ev = loaded["evds"]
     fixes = {
         "TLREF": clean(ev["TLREF"]),
-        "USD": read_sofr(files["sofr"]),
-        "EUR": read_estr(files["estr"]),
-        "GBP": read_sonia(files["sonia"]),
-        "JPY": read_tona(files["tona"]),
+        "USD": loaded["sofr"],
+        "EUR": loaded["estr"],
+        "GBP": loaded["sonia"],
+        "JPY": loaded["tona"],
     }
     # Gelecek tarihli satırlar (ör. TONA dosyasındaki yıl sonuna kadar boş satırlar) zaten atıldı.
     today = pd.Timestamp(date.today())
