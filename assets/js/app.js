@@ -51,6 +51,7 @@
     days: intIn("days", 365, 2500),
     spread: $("spread").checked,
     showFx: $("showFx").checked,
+    margin: (S.marginBps = Math.max(0, parseInt($("margin").value, 10) || 0)),
   });
 
   function prepare(data) {
@@ -77,12 +78,31 @@
     return j < S.N ? j : null;
   };
 
+  /* Borçlanma marjı: fonlama faizine sabit marj eklenmiş birikim endeksi.
+   * Her değerleme aralığında borç faktörü (I_F(t)/I_F(t−1)) + marj × gün / B olur; yani marj her
+   * gecelik faize doğrudan eklenir. Sıfır alt sınırı uygulanmaz: negatif faiz + marj negatif kalabilir. */
+  function fIdx(c) {
+    const m = S.marginBps || 0;
+    if (!m) return c.idx;
+    const key = "_idx" + m;
+    if (c[key]) return c[key];
+    const out = c.idx.slice();
+    for (let t = c.i0 + 1; t < S.N; t++) {
+      const d = dayDiff(S.dates[t - 1], S.dates[t]);
+      out[t] = out[t - 1] * (c.idx[t] / c.idx[t - 1] + (m / 1e4) * d / c.basis);
+    }
+    return (c[key] = out);
+  }
+  // Gösterilen fonlama faizi (yıllık %, marj dahil) ve etiketi
+  const fRateAt = (c, i) => (c.used[i] == null ? null : c.used[i] + (S.marginBps || 0) / 100);
+  const rateLabel = (c) => (S.marginBps ? `${c.rate} + ${S.marginBps} bps` : c.rate);
+
   /* i günü açılıp j günü kapanan pozisyon (1 birim döviz borç başına) */
   function position(c, i, j, spread) {
     const tl = S.data.tl;
     const ent = spread ? c.buy[i] : c.mid[i];
     const ext = spread ? c.sell[j] : c.mid[j];
-    const gtl = tl.idx[j] / tl.idx[i], gf = c.idx[j] / c.idx[i];
+    const fi = fIdx(c), gtl = tl.idx[j] / tl.idx[i], gf = fi[j] / fi[i];
     return { ent, ext, gtl, gf, r: ent * gtl / ext - gf, fx: ext / ent - 1 };
   }
 
@@ -96,8 +116,8 @@
       const p = position(c, i, j, k.spread);
       const n = dayDiff(S.dates[i], S.dates[j]);
       out.push({ i, j, n, date: S.dates[i], exit: S.dates[j], ...p, ann: annualize(p.r, n),
-        tlRate: tl.used[i], fRate: c.used[i],
-        tlAvg: avgRate(tl.idx, i, j, S.data.meta.tlBasis), fAvg: avgRate(c.idx, i, j, c.basis) });
+        tlRate: tl.used[i], fRate: fRateAt(c, i),
+        tlAvg: avgRate(tl.idx, i, j, S.data.meta.tlBasis), fAvg: avgRate(fIdx(c), i, j, c.basis) });
     }
     return out;
   }
@@ -136,7 +156,7 @@
       `${L("Yıllıklandırılmış", "Annualised")}: %{customdata[1]}<br>` +
       `${L("Kapanış", "Close")}: %{customdata[2]} (%{customdata[3]} ${L("gün", "days")})<br>` +
       `${L("TL getirisi", "TL return")}: %{customdata[7]} · ${k.cur}/TRY: %{customdata[6]}<br>` +
-      `TLREF ${L("ort.", "avg.")}: %{customdata[4]} · ${c.rate} ${L("ort.", "avg.")}: %{customdata[5]}<extra></extra>`;
+      `TLREF ${L("ort.", "avg.")}: %{customdata[4]} · ${rateLabel(c)} ${L("ort.", "avg.")}: %{customdata[5]}<extra></extra>`;
     const traces = [
       { x, y: y.map((v) => Math.max(v, 0)), type: "scatter", mode: "lines", line: { width: 0 },
         fill: "tozeroy", fillcolor: gain + "59", hoverinfo: "skip", showlegend: false },
@@ -195,8 +215,8 @@
     const sp = k.spread ? L("kur makası dahil (giriş alış, çıkış satış kuru)", "FX spread included (entry at buying, exit at selling rate)")
       : L("kur makası hariç (orta kur)", "FX spread excluded (mid rate)");
     $("mainCaption").textContent = isEN()
-      ? `Figure 1. Gross return of borrowing ${cur.en} overnight at ${c.rate} in ${cur.city} and earning TLREF, held for ${nf(k.days)} days (in ${k.cur}, %, not annualised); ${sp}. Each point shows the position opened on that day.`
-      : `Şekil 1. ${cur.from} ${c.rate} ile gecelik ${cur.tr} borçlanıp TLREF ile değerlendirilen pozisyonun ${nf(k.days)} günlük brüt getirisi (${k.cur} bazında, %, yıllıklandırılmamış); ${sp}. Her nokta, o gün açılan pozisyonu gösterir.`;
+      ? `Figure 1. Gross return of borrowing ${cur.en} overnight at ${rateLabel(c)} in ${cur.city} and earning TLREF, held for ${nf(k.days)} days (in ${k.cur}, %, not annualised); ${sp}. Each point shows the position opened on that day.`
+      : `Şekil 1. ${cur.from} ${rateLabel(c)} ile gecelik ${cur.tr} borçlanıp TLREF ile değerlendirilen pozisyonun ${nf(k.days)} günlük brüt getirisi (${k.cur} bazında, %, yıllıklandırılmamış); ${sp}. Her nokta, o gün açılan pozisyonu gösterir.`;
     updateStats();
   }
 
@@ -309,7 +329,7 @@
         L(`Döviz karşılığı ${nf(back)} ${code} − borç bakiyesi ${nf(debt)} ${code}`, `FX equivalent ${nf(back)} ${code} − outstanding debt ${nf(debt)} ${code}`), cls(pnl)) +
       card(L("TL bakiye", "TL balance"), `${nf(tl1)} TL`,
         L(`${nf(tl0)} TL → TL getirisi ${pct(p.gtl - 1, 2)}`, `${nf(tl0)} TL → TL return ${pct(p.gtl - 1, 2)}`)) +
-      card(L(`Borç bakiyesi (${c.rate})`, `Outstanding debt (${c.rate})`), `${nf(debt)} ${code}`,
+      card(L(`Borç bakiyesi (${rateLabel(c)})`, `Outstanding debt (${rateLabel(c)})`), `${nf(debt)} ${code}`,
         L(`Fonlama maliyeti ${pct(p.gf - 1, 3)}`, `Funding cost ${pct(p.gf - 1, 3)}`)) +
       card(L(`Kur (${code}/TRY)`, `Exchange rate (${code}/TRY)`), pct(p.fx, 2), `${nf(p.ent, dp)} → ${nf(p.ext, dp)}`) +
       card(L("Dönem", "Period"), `${nf(days)} ${L("gün", "days")}`, `${fdate(S.dates[i])} → ${fdate(S.dates[j])}`);
@@ -323,13 +343,13 @@
     const rows = [];
     for (let t = i; t <= j; t++) {
       const q = position(c, i, t, k.spread);
-      rows.push({ date: S.dates[t], day: dayDiff(S.dates[i], S.dates[t]), tlRate: tl.used[t], fRate: c.used[t],
+      rows.push({ date: S.dates[t], day: dayDiff(S.dates[i], S.dates[t]), tlRate: tl.used[t], fRate: fRateAt(c, t),
         buy: c.buy[t], sell: c.sell[t], tlBal: tl0 * q.gtl, debt: amt * q.gf,
         value: t === i ? (k.spread ? amt * (c.buy[i] / c.sell[i]) : amt) : tl0 * q.gtl / q.ext, r: t === i ? null : q.r });
       rows[rows.length - 1].pnl = rows[rows.length - 1].value - rows[rows.length - 1].debt;
     }
     S.calcRows = rows;
-    const head = `<thead><tr><th>${L("Tarih", "Date")}</th><th>${L("Gün", "Day")}</th><th>TLREF</th><th>${c.rate}</th>` +
+    const head = `<thead><tr><th>${L("Tarih", "Date")}</th><th>${L("Gün", "Day")}</th><th>TLREF</th><th>${rateLabel(c)}</th>` +
       `<th>${L("Alış", "Buy")}</th><th>${L("Satış", "Sell")}</th><th>${L("TL bakiye", "TL balance")}</th>` +
       `<th>${L(`Döviz karşılığı (${code})`, `FX equivalent (${code})`)}</th><th>${L(`Borç bakiyesi (${code})`, `Outstanding debt (${code})`)}</th>` +
       `<th>${L(`Brüt K/Z (${code})`, `Gross P&L (${code})`)}</th><th>${L("Kümülatif getiri", "Cumulative return")}</th></tr></thead>`;
@@ -353,8 +373,8 @@
   function dlMain() {
     const k = cfg(), c = S.data.cur[k.cur];
     const head = isEN()
-      ? ["Open", "Close", "Days", "TLREF (%)", `${c.rate} (%)`, `${k.cur}TRY entry`, `${k.cur}TRY exit`, "TL return (%)", "Funding cost (%)", "FX change (%)", "Carry return (%)", "Annualised (%)"]
-      : ["Açılış", "Kapanış", "Gün", "TLREF (%)", `${c.rate} (%)`, `${k.cur}TRY giriş`, `${k.cur}TRY çıkış`, "TL getirisi (%)", "Fonlama maliyeti (%)", "Kur değişimi (%)", "Carry getirisi (%)", "Yıllıklandırılmış (%)"];
+      ? ["Open", "Close", "Days", "TLREF (%)", `${rateLabel(c)} (%)`, `${k.cur}TRY entry`, `${k.cur}TRY exit`, "TL return (%)", "Funding cost (%)", "FX change (%)", "Carry return (%)", "Annualised (%)"]
+      : ["Açılış", "Kapanış", "Gün", "TLREF (%)", `${rateLabel(c)} (%)`, `${k.cur}TRY giriş`, `${k.cur}TRY çıkış`, "TL getirisi (%)", "Fonlama maliyeti (%)", "Kur değişimi (%)", "Carry getirisi (%)", "Yıllıklandırılmış (%)"];
     const rows = S.rows.map((p) => [p.date, p.exit, p.n, f(p.tlRate, 4), f(p.fRate, 4), f(p.ent, 6), f(p.ext, 6),
       f((p.gtl - 1) * 100, 4), f((p.gf - 1) * 100, 4), f(p.fx * 100, 4), f(p.r * 100, 4), f(p.ann == null ? null : p.ann * 100, 4)]);
     download(`tlref_carry_${k.cur}_${k.days}${L("gun", "d")}${k.spread ? "" : L("_makassiz", "_nospread")}.csv`, head, rows);
@@ -362,8 +382,8 @@
   function dlCalc() {
     const k = cfg(), c = S.data.cur[k.cur], rows = S.calcRows || [];
     const head = isEN()
-      ? ["Date", "Day", "TLREF (%)", `${c.rate} (%)`, `${k.cur}TRY buy`, `${k.cur}TRY sell`, "TL balance", `FX equivalent (${k.cur})`, `Outstanding debt (${k.cur})`, `Gross P&L (${k.cur})`, "Cumulative return (%)"]
-      : ["Tarih", "Gün", "TLREF (%)", `${c.rate} (%)`, `${k.cur}TRY alış`, `${k.cur}TRY satış`, "TL bakiye", `Döviz karşılığı (${k.cur})`, `Borç bakiyesi (${k.cur})`, `Brüt K/Z (${k.cur})`, "Kümülatif getiri (%)"];
+      ? ["Date", "Day", "TLREF (%)", `${rateLabel(c)} (%)`, `${k.cur}TRY buy`, `${k.cur}TRY sell`, "TL balance", `FX equivalent (${k.cur})`, `Outstanding debt (${k.cur})`, `Gross P&L (${k.cur})`, "Cumulative return (%)"]
+      : ["Tarih", "Gün", "TLREF (%)", `${rateLabel(c)} (%)`, `${k.cur}TRY alış`, `${k.cur}TRY satış`, "TL bakiye", `Döviz karşılığı (${k.cur})`, `Borç bakiyesi (${k.cur})`, `Brüt K/Z (${k.cur})`, "Kümülatif getiri (%)"];
     const out = rows.map((r) => [r.date, r.day, f(r.tlRate, 4), f(r.fRate, 4), f(r.buy, 6), f(r.sell, 6), f(r.tlBal, 2), f(r.value, 2), f(r.debt, 2), f(r.pnl, 2), f(r.r == null ? null : r.r * 100, 4)]);
     download(`tlref_carry_${k.cur}_${rows.length ? rows[0].date : ""}_${$("cDays").value}${L("gun", "d")}.csv`, head, out);
   }
@@ -375,6 +395,7 @@
     b.textContent = isEN() ? "Türkçe" : "English";
     b.setAttribute("aria-label", isEN() ? "Türkçeye geç" : "Switch to English");
     document.querySelector(".controls").setAttribute("aria-label", L("Analiz ayarları", "Analysis settings"));
+    document.querySelectorAll("option[data-tr]").forEach((o) => { o.textContent = isEN() ? o.dataset.en : o.dataset.tr; });
   }
   function renderMeta() {
     const m = S.data.meta, d = S.dates;
@@ -408,6 +429,7 @@
     $("days").addEventListener("input", debounce(renderChart));
     $("days").addEventListener("change", () => { $("days").value = cfg().days; renderChart(); });
     $("spread").addEventListener("change", renderAll);
+    $("margin").addEventListener("change", () => { cfg(); renderCalc(); S.keepZoom = true; renderChart(); S.keepZoom = false; });
     $("showEvents").addEventListener("change", () => { S.keepZoom = true; renderChart(); S.keepZoom = false; });
     $("showFx").addEventListener("change", () => {
       Plotly.restyle("mainChart", { visible: $("showFx").checked }, [3]);
