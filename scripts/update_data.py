@@ -1,20 +1,19 @@
 """TLREF carry trade veri seti üretici.
 
-data/raw/ klasöründeki kaynak dosyaları okur, gecelik faiz birikim endekslerini
-(accrual index) hesaplar ve sitenin okuduğu data/dataset.json ile data/dataset.csv
-dosyalarını üretir.
+Gözlemleri data/store/ klasöründen (otomatik çekilen resmî kaynak verisi; bkz.
+scripts/fetch_data.py) okur, gecelik faiz birikim endekslerini (accrual index)
+hesaplar ve sitenin okuduğu data/dataset.json ile data/dataset.csv dosyalarını üretir.
+Store dosyası yoksa eski düzende data/raw/ klasöründeki elle indirilmiş dosyalar okunur:
 
-Beklenen dosyalar (adın bu kelimeyle başlaması yeterli, .xlsx veya .csv):
   evds   TCMB EVDS: TP.BISTTLREF.ORAN ve USD/EUR/GBP/JPY döviz alış-satış kurları (günlük)
   sofr   New York Fed SOFR (Effective Date, Rate (%))
   estr   ECB Data Portal €STR (DATE, değer)
   sonia  Bank of England IUDSOIA (Date, değer)
   tona   Bank of Japan FM01'STRDCLUCON (işlem tarihi, değer; NA = işlem günü değil)
 
-İsteğe bağlı:
-  evds_reserves  TCMB EVDS haftalık rezervler: TP.AB.TOPLAM (brüt rezerv, milyon USD) ve
-                 TP.AB.N06 (net rezerv, bin TL). Net rezerv, aynı gün belirlenen TCMB USD
-                 orta kuruyla milyar USD'ye çevrilir. Dosya yoksa rezerv paneli boş kalır.
+Rezerv verisi ayrı üretilir: scripts/update_reserves.py.
+Hesaplama yöntemi (gün sayımı, birikim endeksi, kur zamanlaması, JPY/100) değişmedi.
+Dosyalar yalnızca içerik değiştiyse yeniden yazılır (atomik yazım).
 
 Kullanım:  python scripts/update_data.py
 """
@@ -27,11 +26,13 @@ from pathlib import Path
 
 import pandas as pd
 
+from store import write_if_changed, write_json_if_changed
+
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "data" / "raw"
 OUT_JSON = ROOT / "data" / "dataset.json"
 OUT_CSV = ROOT / "data" / "dataset.csv"
-OUT_RES_CSV = ROOT / "data" / "reserves.csv"
+STORE = ROOT / "data" / "store"
 RESERVE_WORDS = ("reserv", "rezerv")  # rezerv dosyası adında geçen kelimeler
 
 START = pd.Timestamp("2019-01-01")
@@ -58,12 +59,6 @@ def find_all(prefix: str) -> list[Path]:
     if not hits:
         sys.exit(f"data/raw içinde '{prefix}' ile başlayan dosya bulunamadı.")
     return hits
-
-
-def find_reserves() -> Path | None:
-    hits = sorted((p for p in RAW.iterdir() if is_reserve(p) and p.suffix.lower() in (".xlsx", ".xls", ".csv")),
-                  key=lambda p: ({".xlsx": 0, ".xls": 1, ".csv": 2}[p.suffix.lower()], p.name))
-    return hits[0] if hits else None
 
 
 def pick_file(prefix: str) -> Path:
@@ -101,18 +96,6 @@ def read_evds(p: Path) -> pd.DataFrame:
         div = 100.0 if c == "JPY" else 1.0  # EVDS: 100 JPY = … TL
         out[f"{c}_A"], out[f"{c}_S"] = a / div, s / div
     return out[out.index >= START].sort_index()
-
-
-def read_reserves(p: Path) -> pd.DataFrame:
-    """Haftalık TCMB rezervleri: brüt (milyon USD) ve net (bin TL)."""
-    df = read_any(p)
-    df = df[df.iloc[:, 0].astype(str).str.match(r"^\d{2}-\d{2}-\d{4}$")].copy()
-    df.index = pd.to_datetime(df.iloc[:, 0], format="%d-%m-%Y")
-    df.columns = [str(c).replace(".", "_") for c in df.columns]
-    out = pd.DataFrame(index=df.index)
-    out["gross_musd"] = pd.to_numeric(df.get("TP_AB_TOPLAM"), errors="coerce")
-    out["net_ktl"] = pd.to_numeric(df.get("TP_AB_N06"), errors="coerce")
-    return out[out.index >= START].sort_index().dropna(how="all")
 
 
 def read_sofr(p: Path) -> pd.Series:
@@ -180,10 +163,52 @@ def last_fix(fix: pd.Series, at: pd.DatetimeIndex) -> pd.Series:
     return fix.reindex(fix.index.union(at)).ffill().reindex(at).where(at >= fix.index[0])
 
 
-def main() -> None:
+# ── Girdi: data/store (otomatik) ya da data/raw (eski elle indirme) ─────────
+def store_series(name: str) -> pd.Series | None:
+    p = STORE / f"{name}.csv"
+    if not p.exists():
+        return None
+    df = pd.read_csv(p, dtype={"date": str})
+    s = pd.Series(pd.to_numeric(df["rate"], errors="coerce").values,
+                  index=pd.to_datetime(df["date"], format="%Y-%m-%d"))
+    return clean(s)
+
+
+def store_evds() -> pd.DataFrame | None:
+    pt, pf = STORE / "evds_tlref.csv", STORE / "evds_fx.csv"
+    if not (pt.exists() and pf.exists()):
+        return None
+    frames = []
+    for p in (pt, pf):
+        df = pd.read_csv(p, dtype={"date": str})
+        df.index = pd.to_datetime(df.pop("date"), format="%Y-%m-%d")
+        frames.append(df.apply(pd.to_numeric, errors="coerce"))
+    df = frames[0].join(frames[1], how="outer")
+    out = pd.DataFrame(index=df.index)
+    out["TLREF"] = df["TP_BISTTLREF_ORAN"]
+    for c in FUNDING:
+        div = 100.0 if c == "JPY" else 1.0  # EVDS: 100 JPY = … TL
+        out[f"{c}_A"], out[f"{c}_S"] = df[f"TP_DK_{c}_A_YTL"] / div, df[f"TP_DK_{c}_S_YTL"] / div
+    return out[out.index >= START].sort_index()
+
+
+def load_inputs() -> tuple[dict, dict]:
     readers = {"evds": read_evds, "sofr": read_sofr, "estr": read_estr, "sonia": read_sonia, "tona": read_tona}
-    files = {k: pick_file(k) for k in readers}
-    loaded = {k: reader(files[k]) for k, reader in readers.items()}
+    files, loaded = {}, {}
+    for k, reader in readers.items():
+        got = store_evds() if k == "evds" else store_series(k)
+        if got is not None and len(got):
+            loaded[k] = got
+            files[k] = "store/evds_tlref.csv + store/evds_fx.csv" if k == "evds" else f"store/{k}.csv"
+        else:
+            p = pick_file(k)
+            loaded[k] = reader(p)
+            files[k] = f"raw/{p.name}"
+    return files, loaded
+
+
+def main() -> None:
+    files, loaded = load_inputs()
     ev = loaded["evds"]
     fixes = {
         "TLREF": clean(ev["TLREF"]),
@@ -215,7 +240,7 @@ def main() -> None:
     js = {
         "meta": {
             "generated": datetime.now().strftime("%Y-%m-%d"),
-            "files": {k: v.name for k, v in files.items()},
+            "files": files,
             "last": {"TLREF": fixes["TLREF"].index[-1].strftime("%Y-%m-%d"),
                      "FX": days[-1].strftime("%Y-%m-%d"),
                      **{FUNDING[c]["rate"]: fixes[c].index[-1].strftime("%Y-%m-%d") for c in FUNDING}},
@@ -258,30 +283,10 @@ def main() -> None:
         csv[f"{r}_effective"] = used
         csv[f"{r}_index"] = idx
 
-    # Haftalık rezervler (isteğe bağlı panel)
-    res_file = find_reserves()
-    if res_file is not None:
-        res = read_reserves(res_file)
-        usd_mid = ((ev["USD_A"] + ev["USD_S"]) / 2).dropna()
-        rate = usd_mid.reindex(usd_mid.index.union(res.index)).ffill().reindex(res.index)
-        res["usd_mid"] = rate
-        res["net_busd"] = res["net_ktl"] / rate / 1e6       # bin TL → milyar USD
-        res["gross_busd"] = res["gross_musd"] / 1e3          # milyon USD → milyar USD
-        res = res.dropna(subset=["net_busd"])
-        js["reserves"] = {
-            "dates": [d.strftime("%Y-%m-%d") for d in res.index],
-            "net": [round(float(x), 3) for x in res["net_busd"]],
-            "gross": [None if pd.isna(x) else round(float(x), 3) for x in res["gross_busd"]],
-        }
-        js["meta"]["files"]["reserves"] = res_file.name
-        js["meta"]["last"]["reserves"] = res.index[-1].strftime("%Y-%m-%d")
-        res.index.name = "date"
-        res[["gross_musd", "net_ktl", "usd_mid", "gross_busd", "net_busd"]].to_csv(OUT_RES_CSV, float_format="%.10g")
-        print(f"  rezerv {len(res):5d} hafta, {res.index[0].date()} → {res.index[-1].date()}, "
-              f"son net {res['net_busd'].iloc[-1]:.1f} mlr USD")
-
-    OUT_JSON.write_text(json.dumps(js, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    csv.to_csv(OUT_CSV, float_format="%.10g")
+    # "generated" yalnızca veri değiştiğinde ilerler; yeni gözlem yoksa dosyalar ve commit oluşmaz.
+    ch_json = write_json_if_changed(OUT_JSON, js, volatile=("generated",), ensure_ascii=False, separators=(",", ":"))
+    ch_csv = write_if_changed(OUT_CSV, csv.to_csv(float_format="%.10g", lineterminator="\n"))
+    print("dataset.json/csv " + ("güncellendi" if (ch_json or ch_csv) else "değişmedi"))
     print(f"{len(days)} değerleme günü: {days[0].date()} → {days[-1].date()}")
     for k, s in fixes.items():
         print(f"  {k:6s} {len(s):5d} işlem günü, {s.index[0].date()} → {s.index[-1].date()}, son {s.iloc[-1]}")

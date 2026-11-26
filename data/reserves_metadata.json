@@ -1,0 +1,126 @@
+{
+ "generated": "2026-11-26T17:45:46Z",
+ "methodologyVersion": "2.0.0",
+ "unit": "USD billion",
+ "sources": {
+  "TP.AB.TOPLAM": {
+   "description": "Gross reserves (gold + foreign currency)",
+   "nativeUnit": "million USD",
+   "frequency": "weekly",
+   "conversion": "/ 1,000",
+   "firstObs": "2019-01-04",
+   "lastObs": "2026-11-13",
+   "count": 411
+  },
+  "TP.AB.C1": {
+   "description": "Gold reserves",
+   "nativeUnit": "million USD",
+   "frequency": "weekly",
+   "conversion": "/ 1,000",
+   "firstObs": "2019-01-04",
+   "lastObs": "2026-11-13",
+   "count": 411
+  },
+  "TP.AB.C2": {
+   "description": "Foreign currency reserves",
+   "nativeUnit": "million USD",
+   "frequency": "weekly",
+   "conversion": "/ 1,000",
+   "firstObs": "2019-01-04",
+   "lastObs": "2026-11-13",
+   "count": 411
+  },
+  "TP.AB.N06": {
+   "description": "2A Net international reserves (1+2+3), Stand-By definition",
+   "nativeUnit": "thousand TRY",
+   "frequency": "weekly",
+   "conversion": "/ USDTRY buying rate set at 15:30 on the balance-sheet date / 1,000,000",
+   "firstObs": "2019-01-04",
+   "lastObs": "2026-11-13",
+   "count": 411
+  },
+  "TP.DK.USD.A.YTL": {
+   "description": "CBRT indicative USD/TRY buying rate",
+   "nativeUnit": "TRY per USD",
+   "frequency": "daily",
+   "timing": "EVDS date = day the rate applies; set 15:30 previous business day"
+  },
+  "TP.AB.A02": {
+   "description": "Analytical balance sheet: foreign assets",
+   "nativeUnit": "thousand TRY (expected)",
+   "frequency": "daily",
+   "firstObs": null,
+   "lastObs": null,
+   "count": 0
+  },
+  "TP.AB.A10": {
+   "description": "Analytical balance sheet: total FX liabilities",
+   "nativeUnit": "thousand TRY (expected)",
+   "frequency": "daily",
+   "firstObs": null,
+   "lastObs": null,
+   "count": 0
+  },
+  "TP.SWAPTEKTAR.TOTALSTOKALIMYONLU": {
+   "description": "Domestic buy-side swap stock",
+   "frequency": "daily",
+   "nativeUnit": "not yet identified",
+   "firstObs": null,
+   "lastObs": null,
+   "count": 0
+  },
+  "TP.SWAPTEKTAR.TOTALSTOKSATIMYONLU": {
+   "description": "Domestic sell-side (reverse) swap stock",
+   "frequency": "daily",
+   "nativeUnit": "not yet identified",
+   "firstObs": null,
+   "lastObs": null,
+   "count": 0
+  },
+  "TP.DOVVARNC.K14": {
+   "description": "IRFCL II.2 forwards, futures and swaps (net)",
+   "nativeUnit": "million USD",
+   "frequency": "monthly",
+   "firstObs": null,
+   "lastObs": null,
+   "count": 0
+  },
+  "TP.DOVVARNC.K23": {
+   "description": "IRFCL II.3 other predetermined net drains",
+   "nativeUnit": "million USD",
+   "frequency": "monthly",
+   "firstObs": null,
+   "lastObs": null,
+   "count": 0
+  }
+ },
+ "sourceUrl": "https://evds3.tcmb.gov.tr/",
+ "publicationDates": "not provided by the EVDS API; observation dates are reported",
+ "swapAdjustedEstimate": {
+  "published": false,
+  "checks": [
+   {
+    "check": "inputs: analytical balance sheet A02/A10",
+    "ok": false,
+    "detail": ""
+   },
+   {
+    "check": "inputs: domestic swap stocks with identified unit",
+    "ok": false,
+    "detail": ""
+   },
+   {
+    "check": "inputs: monthly IRFCL II.2 and II.3",
+    "ok": false,
+    "detail": ""
+   }
+  ],
+  "reason": "required inputs are not available yet",
+  "irfclLagRule": "month M usable from day 1 of month M+2",
+  "formula": "NetABS - ForeignSwap(M*) - DomBuy + DomSell; ForeignSwap = -(II.2+II.3) - DomNet(month-end)"
+ },
+ "warnings": [
+  "Domestic swap stocks not yet retrieved (EVDS); swap series and estimate unavailable.",
+  "Swap-adjusted net reserve estimate not published: required inputs are not available yet."
+ ]
+}

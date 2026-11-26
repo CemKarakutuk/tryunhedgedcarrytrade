@@ -25,7 +25,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/styles.css?v=5">
+<link rel="stylesheet" href="assets/css/styles.css?v=6">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
 <!--PLOTLY-->
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
@@ -81,8 +81,11 @@
         <label><input type="checkbox" id="spread" checked> <span data-lang="tr">Kur makası</span><span data-lang="en">FX spread</span></label>
         <label><input type="checkbox" id="showFx"> <span data-lang="tr">Kur değişimi</span><span data-lang="en">FX change</span></label>
         <label><input type="checkbox" id="showEvents" checked> <span data-lang="tr">Olaylar</span><span data-lang="en">Events</span></label>
-        <label><input type="checkbox" id="showRes"> <span data-lang="tr">Net rezervler</span><span data-lang="en">Net reserves</span></label>
+        <label><input type="checkbox" id="showRes"> <span data-lang="tr">TCMB rezervleri</span><span data-lang="en">CBRT reserves</span></label>
       </div>
+      <label class="res-pick" id="resPick" hidden><span class="sr-only"><span data-lang="tr">Rezerv serisi</span><span data-lang="en">Reserve series</span></span>
+        <select id="resSeries"></select>
+      </label>
     </div>
   </div>
 </section>
@@ -324,14 +327,37 @@
       <li data-lang="tr"><strong>Döviz kurları:</strong> TCMB EVDS, USD, EUR, GBP ve JPY döviz alış ve satış kurları, TP.DK.*.A.YTL ve TP.DK.*.S.YTL (günlük; JPY 100 yen başına verilir).</li>
       <li data-lang="en"><strong>Exchange rates:</strong> CBRT EVDS, USD, EUR, GBP and JPY buying and selling rates, TP.DK.*.A.YTL and TP.DK.*.S.YTL (daily; JPY quoted per 100 yen).</li>
       <li data-lang="tr"><strong>SOFR:</strong> Federal Reserve Bank of New York. <strong>€STR:</strong> Avrupa Merkez Bankası. <strong>SONIA:</strong> Bank of England (IUDSOIA). <strong>TONA:</strong> Bank of Japan (FM01'STRDCLUCON).</li>
-      <li data-lang="tr"><strong>Net rezervler:</strong> TCMB EVDS, haftalık rezervler, TP.AB.N06 (bin TL). Seri, ait olduğu haftanın son günü belirlenen TCMB USD orta kuruyla milyar USD'ye çevrilir ve grafikte sağ eksende gösterilir.</li>
+      <li data-lang="tr"><strong>TCMB rezervleri:</strong> TCMB EVDS, haftalık brüt rezervler TP.AB.TOPLAM, altın TP.AB.C1 ve döviz TP.AB.C2 (milyon USD) ile Stand-By tanımlı net uluslararası rezervler TP.AB.N06 (bin TL). Net rezervler, bilanço tarihinde saat 15:30'da belirlenen TCMB USD döviz alış kuruyla milyar USD'ye çevrilir. Seçilen seri grafikte sağ eksende gösterilir.</li>
       <li data-lang="en"><strong>SOFR:</strong> Federal Reserve Bank of New York. <strong>€STR:</strong> European Central Bank. <strong>SONIA:</strong> Bank of England (IUDSOIA). <strong>TONA:</strong> Bank of Japan (FM01'STRDCLUCON).</li>
-      <li data-lang="en"><strong>Net reserves:</strong> CBRT EVDS, weekly reserves, TP.AB.N06 (thousand TL). The series is converted to USD billions at the CBRT USD mid rate set on the last day of the week and shown on the right axis of the chart.</li>
+      <li data-lang="en"><strong>CBRT reserves:</strong> CBRT EVDS, weekly gross reserves TP.AB.TOPLAM, gold TP.AB.C1 and foreign currency TP.AB.C2 (USD millions), and Stand-By net international reserves TP.AB.N06 (thousand TL). Net reserves are converted to USD billions at the CBRT USD buying rate set at 15:30 on the balance-sheet date. The selected series is shown on the right axis of the chart.</li>
     </ul>
+    <div id="resDisclosure" hidden>
+      <p class="note" data-lang="tr">Günlük swap hariç net rezervler, TCMB analitik bilançosu, gösterge niteliğindeki döviz kurları, yurt içi swap pozisyonları ve aylık uluslararası rezervler ve döviz likiditesi istatistikleri kullanılarak bağımsız olarak tahmin edilmektedir. Yurt dışı swap pozisyonları mevcut son aylık gözlemlerden tahmin edilmekte ve yeni veri yayımlanana kadar sabit tutulmaktadır. Bu nedenle günlük tahminler gerçekleşen rezerv pozisyonlarından farklılaşabilir. Bu seri TCMB tarafından yayımlanan resmî bir rezerv serisi değildir.</p>
+      <p class="note" data-lang="en">Daily swap-adjusted net reserves are independently estimated using CBRT analytical balance sheet data, indicative exchange rates, domestic swap positions and monthly international reserves and foreign currency liquidity statistics. Foreign swap positions are estimated using the latest available monthly observations and held constant until new data become available. Consequently, daily estimates may differ from actual reserve positions. These estimates are not an official CBRT reserve series.</p>
+    </div>
+    <p class="note" data-lang="tr">Veriler resmî kaynakların uç noktalarından her iş günü otomatik olarak çekilir (EVDS, New York Fed, ECB Data Portal, Bank of England, BOJ Time-Series Data Search). Bu hizmet, “Bank of Japan Time-Series Data Search” tarafından sağlanan API’yi kullanmaktadır; Japonya Merkez Bankası hizmetin içeriğini garanti etmez.</p>
+    <p class="note" data-lang="en">Data are retrieved automatically every business day from the official endpoints (EVDS, New York Fed, ECB Data Portal, Bank of England, BOJ Time-Series Data Search). This service uses the API provided by the "Bank of Japan Time-Series Data Search." The Bank of Japan does not guarantee the content of the service.</p>
+    <details class="rolls status-panel" id="dataStatus" hidden>
+      <summary><span data-lang="tr">Veri durumu</span><span data-lang="en">Data status</span></summary>
+      <div class="table-wrap">
+        <table class="status-table">
+          <thead><tr>
+            <th><span data-lang="tr">Seri</span><span data-lang="en">Series</span></th>
+            <th><span data-lang="tr">Durum</span><span data-lang="en">Status</span></th>
+            <th class="num"><span data-lang="tr">Son gözlem</span><span data-lang="en">Latest observation</span></th>
+            <th><span data-lang="tr">Sıklık</span><span data-lang="en">Frequency</span></th>
+            <th class="num"><span data-lang="tr">Kapsam (gözlem)</span><span data-lang="en">Coverage (obs.)</span></th>
+            <th class="num"><span data-lang="tr">Son başarılı güncelleme</span><span data-lang="en">Last successful update</span></th>
+          </tr></thead>
+          <tbody id="statusBody"></tbody>
+        </table>
+      </div>
+      <p class="meta" id="statusNote"></p>
+    </details>
     <p class="downloads">
       <a class="btn" href="data/dataset.csv" download><span data-lang="tr">Birleştirilmiş veri seti (CSV)</span><span data-lang="en">Combined dataset (CSV)</span></a>
       <a class="btn ghost" href="data/dataset.json" download>JSON</a>
-      <a class="btn ghost" href="data/reserves.csv" download><span data-lang="tr">Net rezervler (CSV)</span><span data-lang="en">Net reserves (CSV)</span></a>
+      <a class="btn ghost" href="data/reserves.csv" download><span data-lang="tr">TCMB rezervleri (CSV)</span><span data-lang="en">CBRT reserves (CSV)</span></a>
     </p>
     <p class="meta" id="metaFiles"></p>
   </section>
@@ -346,6 +372,6 @@
 </footer>
 
 <!--DATA-->
-<script src="assets/js/app.js?v=6"></script>
+<script src="assets/js/app.js?v=7"></script>
 </body>
 </html>

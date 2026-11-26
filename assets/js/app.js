@@ -46,13 +46,21 @@
   const intIn = (id, def, max) => Math.max(1, Math.min(max, Math.round(parseFloat($(id).value) || def)));
 
   // ── Durum ─────────────────────────────────────────────────────────────
-  const S = { data: null, events: [], N: 0, dates: [], rows: [], calc: null };
+  const S = { data: null, res: null, status: null, events: [], N: 0, dates: [], rows: [], calc: null };
+  /* Seçili rezerv serisi (data/reserves.json); yüklenemezse null döner ve carry grafiği etkilenmez */
+  const resSer = () => {
+    const sel = $("resSeries"), ser = S.res && S.res.series;
+    if (!ser) return null;
+    const key = sel && ser[sel.value] ? sel.value : (ser.net ? "net" : Object.keys(ser)[0]);
+    const r = ser[key];
+    return r && r.dates && r.dates.length ? Object.assign({ key }, r) : null;
+  };
   const cfg = () => ({
     cur: document.querySelector("#curSeg [aria-checked=true]").dataset.cur,
     days: intIn("days", 365, 2500),
     spread: $("spread").checked,
     showFx: $("showFx").checked,
-    showRes: !!($("showRes") && $("showRes").checked && S.data && S.data.reserves),
+    showRes: !!($("showRes") && $("showRes").checked && resSer()),
     margin: (S.marginBps = Math.max(0, parseInt($("margin").value, 10) || 0)),
   });
 
@@ -171,13 +179,14 @@
     ];
     // Haftalık TCMB net rezervleri: sağ eksen (isteğe bağlı)
     if (k.showRes) {
-      const R = S.data.reserves, rx = [], ry = [], rc = [];
+      const R = resSer(), rx = [], ry = [], rc = [], est = R.kind === "estimate";
       // Rezervler bugüne kadar çizilir; tarih ekseni gerekirse son vade tarihinin ötesine uzar
-      R.dates.forEach((d, i) => { if (d >= x[0]) { rx.push(d); ry.push(R.net[i]); rc.push(fdate(d)); } });
+      R.dates.forEach((d, i) => { if (d >= x[0] && R.values[i] != null) { rx.push(d); ry.push(R.values[i]); rc.push(fdate(d)); } });
+      const lab = L(R.label_tr, R.label_en) + (est ? L(" — tahmin, resmî seri değil", " — estimate, not an official series") : "");
       traces.push({ x: rx, y: ry, yaxis: "y2", customdata: rc, type: "scatter", mode: "lines",
-        name: L("TCMB net rezervleri (milyar USD, sağ eksen)", "CBRT net reserves (USD bn, right axis)"),
-        line: { color: RES_COLOR, width: 1.6 },
-        hovertemplate: `${L("Net rezerv", "Net reserves")}: %{y:,.1f} ${L("mlr $", "bn $")} (%{customdata})<extra></extra>` });
+        name: `${lab}, ${L("milyar USD, sağ eksen", "USD bn, right axis")}`,
+        line: { color: RES_COLOR, width: 1.6, dash: est ? "dash" : "solid" },
+        hovertemplate: `${esc(L(R.label_tr, R.label_en))}: %{y:,.1f} ${L("mlr $", "bn $")} (%{customdata})<extra></extra>` });
     }
     const ink = css("--ink"), rule = css("--rule"), narrow = window.innerWidth < 700;
     const layout = {
@@ -196,11 +205,11 @@
     };
     if (k.showRes) {
       layout.yaxis2 = { overlaying: "y", side: "right", fixedrange: true, showgrid: false, zeroline: false,
-        range: y2Range(x[0], S.data.reserves.dates[S.data.reserves.dates.length - 1]), autorange: false, tickfont: { color: RES_COLOR },
-        title: { text: L("Net rezerv (milyar USD)", "Net reserves (USD bn)"), font: { color: RES_COLOR, size: 12 } } };
+        range: y2Range(x[0], resSer().dates[resSer().dates.length - 1]), autorange: false, tickfont: { color: RES_COLOR },
+        title: { text: L("Rezerv (milyar USD)", "Reserves (USD bn)"), font: { color: RES_COLOR, size: 12 } } };
     }
     if ($("showEvents").checked) {
-      const xEnd = k.showRes ? [x[x.length - 1], ...S.data.reserves.dates.slice(-1)].sort().pop() : x[x.length - 1];
+      const xEnd = k.showRes ? [x[x.length - 1], ...resSer().dates.slice(-1)].sort().pop() : x[x.length - 1];
       const evs = S.events.filter((e) => (!e.cur || e.cur.includes(k.cur)) && e.date >= x[0] && e.date <= xEnd)
         .sort((a, b) => a.date.localeCompare(b.date));
       let prev = null, level = 0;
@@ -250,11 +259,11 @@
     const pad = Math.max((mx - mn) * 0.08, 0.05);
     return [mn - pad, mx + pad];
   }
-  /* Görünen aralıktaki net rezervlere göre sağ eksen sınırları */
+  /* Görünen aralıktaki rezerv değerlerine göre sağ eksen sınırları */
   function y2Range(lo, hi) {
-    const R = S.data.reserves;
+    const R = resSer();
     let mn = Infinity, mx = -Infinity;
-    R.dates.forEach((d, i) => { if (d >= lo && d <= hi) { mn = Math.min(mn, R.net[i]); mx = Math.max(mx, R.net[i]); } });
+    if (R) R.dates.forEach((d, i) => { const v = R.values[i]; if (v != null && d >= lo && d <= hi) { mn = Math.min(mn, v); mx = Math.max(mx, v); } });
     if (!isFinite(mn)) return [0, 1];
     const pad = Math.max((mx - mn) * 0.08, 0.5);
     return [mn - pad, mx + pad];
@@ -263,7 +272,7 @@
     const gd = $("mainChart"), xa = gd.layout && gd.layout.xaxis, s = S.rows;
     const full = !xa || !xa.range || xa.autorange === true;
     let end = s[s.length - 1].date;
-    if (full && cfg().showRes) { const rd = S.data.reserves.dates; if (rd[rd.length - 1] > end) end = rd[rd.length - 1]; }
+    if (full && cfg().showRes) { const rd = resSer().dates; if (rd[rd.length - 1] > end) end = rd[rd.length - 1]; }
     return [full ? s[0].date : String(xa.range[0]).slice(0, 10), full ? end : String(xa.range[1]).slice(0, 10)];
   }
   function rescaleY() {
@@ -430,9 +439,48 @@
   function renderMeta() {
     const m = S.data.meta, d = S.dates;
     $("metaLine").textContent = L(
-      `Veri: ${fdate(d[0])} – ${fdate(d[S.N - 1])} (günlük). Son gözlemler: TLREF ${fdate(m.last.TLREF)}, SOFR ${fdate(m.last.SOFR)}, €STR ${fdate(m.last["€STR"])}, SONIA ${fdate(m.last.SONIA)}, TONA ${fdate(m.last.TONA)}${m.last.reserves ? `, net rezerv ${fdate(m.last.reserves)}` : ""}. Veri güncelleme: ${fdate(m.generated)}.`,
-      `Data: ${fdate(d[0])} – ${fdate(d[S.N - 1])} (daily). Latest observations: TLREF ${fdate(m.last.TLREF)}, SOFR ${fdate(m.last.SOFR)}, €STR ${fdate(m.last["€STR"])}, SONIA ${fdate(m.last.SONIA)}, TONA ${fdate(m.last.TONA)}${m.last.reserves ? `, net reserves ${fdate(m.last.reserves)}` : ""}. Data updated: ${fdate(m.generated)}.`);
-    $("metaFiles").textContent = L("Kaynak dosyalar (data/raw): ", "Source files (data/raw): ") + Object.values(m.files).join(", ") + ".";
+      `Veri: ${fdate(d[0])} – ${fdate(d[S.N - 1])} (günlük). Son gözlemler: TLREF ${fdate(m.last.TLREF)}, SOFR ${fdate(m.last.SOFR)}, €STR ${fdate(m.last["€STR"])}, SONIA ${fdate(m.last.SONIA)}, TONA ${fdate(m.last.TONA)}${resLast() ? `, net rezerv ${fdate(resLast())}` : ""}. Veri güncelleme: ${fdate(m.generated)}.`,
+      `Data: ${fdate(d[0])} – ${fdate(d[S.N - 1])} (daily). Latest observations: TLREF ${fdate(m.last.TLREF)}, SOFR ${fdate(m.last.SOFR)}, €STR ${fdate(m.last["€STR"])}, SONIA ${fdate(m.last.SONIA)}, TONA ${fdate(m.last.TONA)}${resLast() ? `, net reserves ${fdate(resLast())}` : ""}. Data updated: ${fdate(m.generated)}.`);
+    $("metaFiles").textContent = L("Hesaplamada kullanılan veri dosyaları (data/): ", "Data files used in the calculation (data/): ") + Object.values(m.files).join(", ") + ".";
+    renderResOptions();
+    renderStatus();
+  }
+  const resLast = () => (S.res && S.res.series && S.res.series.net && S.res.series.net.dates.length
+    ? S.res.series.net.dates[S.res.series.net.dates.length - 1] : null);
+  /* Rezerv seçeneği: reserves.json'da bulunan seriler (tahmin serisi yalnızca doğrulanıp yayımlandıysa gelir) */
+  function renderResOptions() {
+    const sel = $("resSeries"), box = $("resPick");
+    if (!sel) return;
+    const ser = (S.res && S.res.series) || {};
+    const keys = ["net", "gross", "netExSwapEst", "gold", "fx", "domSwap", "revSwap", "foreignSwapEst"].filter((k) => ser[k] && ser[k].dates.length);
+    if (!keys.length) { if (box) box.hidden = true; if ($("showRes")) $("showRes").disabled = true; return; }
+    const cur = sel.value || safeGet("tlref-res") || "net";
+    sel.innerHTML = keys.map((k) => `<option value="${k}">${esc(L(ser[k].label_tr, ser[k].label_en))}${ser[k].kind === "estimate" ? L(" (tahmin)", " (estimate)") : ""}</option>`).join("");
+    sel.value = keys.includes(cur) ? cur : "net";
+    if (box) box.hidden = !$("showRes").checked;
+    if ($("resDisclosure")) $("resDisclosure").hidden = !ser.netExSwapEst;
+  }
+  /* Veri durumu paneli (data/data_status.json); yüklenemezse panel gizli kalır */
+  function renderStatus() {
+    const box = $("dataStatus"), st = S.status;
+    if (!box) return;
+    if (!st || !Array.isArray(st.sources)) { box.hidden = true; return; }
+    box.hidden = false;
+    const ST = { current: ["güncel", "current"], stale: ["gecikmeli", "stale"], unavailable: ["erişilemedi", "unavailable"],
+      validation_failed: ["doğrulama başarısız", "validation failed"] };
+    const FQ = { daily: ["günlük", "daily"], weekly: ["haftalık", "weekly"], monthly: ["aylık", "monthly"] };
+    const ts = (t) => t ? fdate(t.slice(0, 10)) + " " + t.slice(11, 16) + " UTC" : "–";
+    const rows = st.sources.map((s) => {
+      const tag = ST[s.status] || [s.status, s.status];
+      const title = [L(s.expectedLag_tr, s.expectedLag_en), s.message].filter(Boolean).join(" — ");
+      return `<tr><td>${esc(L(s.label_tr, s.label_en))}</td><td><span class="st st-${esc(s.status)}" title="${esc(title)}">${esc(L(tag[0], tag[1]))}</span></td>` +
+        `<td class="num">${s.lastObs ? fdate(s.lastObs) : "–"}</td><td>${esc(L(...(FQ[s.frequency] || [s.frequency, s.frequency])))}</td>` +
+        `<td class="num">${s.firstObs ? fdate(s.firstObs) + " – " + nf(s.count) : "–"}</td><td class="num">${ts(s.lastSuccess)}</td></tr>`;
+    }).join("");
+    $("statusBody").innerHTML = rows;
+    $("statusNote").textContent = (st.pipelineError ? L("Son güncelleme doğrulamadan geçemedi; önceki geçerli veri yayında. ", "The last update failed validation; the previous valid data are still published. ") : "") +
+      L(`Durum dosyası: ${ts(st.generated)}. "Gecikmeli", olağan yayım gecikmesi ve tatiller hesaba katıldıktan sonra beklenenden eski veri demektir; haftalık ve aylık seriler kendi takvimlerine göre değerlendirilir.`,
+        `Status file: ${ts(st.generated)}. "Stale" means older than expected after normal publication lags and holidays; weekly and monthly series are judged on their own calendars.`);
   }
   function setLanguage(lang) {
     LANG = lang;
@@ -461,7 +509,14 @@
     $("spread").addEventListener("change", renderAll);
     $("margin").addEventListener("change", () => { cfg(); renderCalc(); S.keepZoom = true; renderChart(); S.keepZoom = false; });
     $("showEvents").addEventListener("change", () => { S.keepZoom = true; renderChart(); S.keepZoom = false; });
-    if ($("showRes")) $("showRes").addEventListener("change", () => { S.keepZoom = true; renderChart(); S.keepZoom = false; });
+    if ($("showRes")) $("showRes").addEventListener("change", () => {
+      if ($("resPick")) $("resPick").hidden = !$("showRes").checked;
+      S.keepZoom = true; renderChart(); S.keepZoom = false;
+    });
+    if ($("resSeries")) $("resSeries").addEventListener("change", () => {
+      safeSet("tlref-res", $("resSeries").value);
+      S.keepZoom = true; renderChart(); S.keepZoom = false;
+    });
     $("showFx").addEventListener("change", () => {
       Plotly.restyle("mainChart", { visible: $("showFx").checked }, [3]);
       rescaleY();
@@ -501,6 +556,11 @@
     if (!window.__TLREF_EVENTS__) {
       try { const r = await fetch("data/events.json", { cache: "no-cache" }); if (r.ok) S.events = await r.json(); } catch (_) { /* isteğe bağlı */ }
     }
+    // Rezerv ve veri durumu dosyaları isteğe bağlıdır: hata carry grafiğini asla engellemez
+    const opt = async (url) => { try { const r = await fetch(url, { cache: "no-cache" }); return r.ok ? await r.json() : null; } catch (_) { return null; } };
+    [S.res, S.status] = window.__TLREF_RES__ !== undefined ? [window.__TLREF_RES__, window.__TLREF_STATUS__ || null]
+      : await Promise.all([opt("data/reserves.json"), opt("data/data_status.json")]);
+    if (S.res && !(S.res.series && S.res.series.net)) S.res = null;
     registerLocale();
     prepare(data);
     const saved = safeGet("tlref-cur");
