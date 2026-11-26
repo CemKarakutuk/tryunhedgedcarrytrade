@@ -24,6 +24,7 @@
   const MONTHS_TR = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
   const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const MAIN = 2; // ana getiri çizgisinin iz numarası
+  const RES_COLOR = "#e67e22"; // net rezerv çizgisi (sağ eksen)
 
   // ── Yardımcılar ───────────────────────────────────────────────────────
   const $ = (id) => document.getElementById(id);
@@ -51,6 +52,7 @@
     days: intIn("days", 365, 2500),
     spread: $("spread").checked,
     showFx: $("showFx").checked,
+    showRes: !!($("showRes") && $("showRes").checked && S.data && S.data.reserves),
     margin: (S.marginBps = Math.max(0, parseInt($("margin").value, 10) || 0)),
   });
 
@@ -167,11 +169,21 @@
       { x, y: s.map((p) => p.fx * 100), name: L(`Kur değişimi (${k.cur}/TRY, ${nf(k.days)} gün)`, `FX change (${k.cur}/TRY, ${nf(k.days)} days)`),
         type: "scatter", mode: "lines", line: { color: css("--fx"), width: 1.4, dash: "dot" }, visible: k.showFx, hoverinfo: "skip" },
     ];
+    // Haftalık TCMB net rezervleri: sağ eksen (isteğe bağlı)
+    if (k.showRes) {
+      const R = S.data.reserves, rx = [], ry = [], rc = [];
+      // Rezervler bugüne kadar çizilir; tarih ekseni gerekirse son vade tarihinin ötesine uzar
+      R.dates.forEach((d, i) => { if (d >= x[0]) { rx.push(d); ry.push(R.net[i]); rc.push(fdate(d)); } });
+      traces.push({ x: rx, y: ry, yaxis: "y2", customdata: rc, type: "scatter", mode: "lines",
+        name: L("TCMB net rezervleri (milyar USD, sağ eksen)", "CBRT net reserves (USD bn, right axis)"),
+        line: { color: RES_COLOR, width: 1.6 },
+        hovertemplate: `${L("Net rezerv", "Net reserves")}: %{y:,.1f} ${L("mlr $", "bn $")} (%{customdata})<extra></extra>` });
+    }
     const ink = css("--ink"), rule = css("--rule"), narrow = window.innerWidth < 700;
     const layout = {
       paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
       font: { family: css("--sans") || "IBM Plex Sans, sans-serif", color: ink, size: 12.5 },
-      margin: { l: 58, r: 18, t: 40, b: 44 }, hovermode: "x unified", dragmode: "zoom",
+      margin: { l: 58, r: k.showRes ? 62 : 18, t: 40, b: 44 }, hovermode: "x unified", dragmode: "zoom",
       hoverlabel: { bgcolor: "#ffffff", bordercolor: rule, font: { color: ink, size: 12.5 } },
       legend: { orientation: "h", x: 0, y: 1.07, font: { color: ink, size: 12.5 } },
       xaxis: { type: "date", showgrid: true, gridcolor: css("--grid"), griddash: "dot", linecolor: css("--ink-2"), tickcolor: rule,
@@ -182,8 +194,14 @@
         title: { text: L(`${nf(k.days)} günlük getiri (%)`, `${nf(k.days)}-day return (%)`), font: { color: css("--muted"), size: 12 } } },
       shapes: [], annotations: [],
     };
+    if (k.showRes) {
+      layout.yaxis2 = { overlaying: "y", side: "right", fixedrange: true, showgrid: false, zeroline: false,
+        range: y2Range(x[0], S.data.reserves.dates[S.data.reserves.dates.length - 1]), autorange: false, tickfont: { color: RES_COLOR },
+        title: { text: L("Net rezerv (milyar USD)", "Net reserves (USD bn)"), font: { color: RES_COLOR, size: 12 } } };
+    }
     if ($("showEvents").checked) {
-      const evs = S.events.filter((e) => (!e.cur || e.cur.includes(k.cur)) && e.date >= x[0] && e.date <= x[x.length - 1])
+      const xEnd = k.showRes ? [x[x.length - 1], ...S.data.reserves.dates.slice(-1)].sort().pop() : x[x.length - 1];
+      const evs = S.events.filter((e) => (!e.cur || e.cur.includes(k.cur)) && e.date >= x[0] && e.date <= xEnd)
         .sort((a, b) => a.date.localeCompare(b.date));
       let prev = null, level = 0;
       for (const e of evs) {
@@ -232,10 +250,21 @@
     const pad = Math.max((mx - mn) * 0.08, 0.05);
     return [mn - pad, mx + pad];
   }
+  /* Görünen aralıktaki net rezervlere göre sağ eksen sınırları */
+  function y2Range(lo, hi) {
+    const R = S.data.reserves;
+    let mn = Infinity, mx = -Infinity;
+    R.dates.forEach((d, i) => { if (d >= lo && d <= hi) { mn = Math.min(mn, R.net[i]); mx = Math.max(mx, R.net[i]); } });
+    if (!isFinite(mn)) return [0, 1];
+    const pad = Math.max((mx - mn) * 0.08, 0.5);
+    return [mn - pad, mx + pad];
+  }
   function visible() {
     const gd = $("mainChart"), xa = gd.layout && gd.layout.xaxis, s = S.rows;
     const full = !xa || !xa.range || xa.autorange === true;
-    return [full ? s[0].date : String(xa.range[0]).slice(0, 10), full ? s[s.length - 1].date : String(xa.range[1]).slice(0, 10)];
+    let end = s[s.length - 1].date;
+    if (full && cfg().showRes) { const rd = S.data.reserves.dates; if (rd[rd.length - 1] > end) end = rd[rd.length - 1]; }
+    return [full ? s[0].date : String(xa.range[0]).slice(0, 10), full ? end : String(xa.range[1]).slice(0, 10)];
   }
   function rescaleY() {
     const gd = $("mainChart");
@@ -245,7 +274,8 @@
     const xt = days > (narrow ? 1300 : 900) ? { "xaxis.dtick": narrow ? "M24" : "M12", "xaxis.tickformat": "%Y", "xaxis.ticklabelmode": "period" }
       : days > (narrow ? 500 : 300) ? { "xaxis.dtick": "M3", "xaxis.tickformat": "%b %Y", "xaxis.ticklabelmode": "instant" }
       : { "xaxis.dtick": "M1", "xaxis.tickformat": "%b %Y", "xaxis.ticklabelmode": "instant" };
-    Plotly.relayout(gd, Object.assign({ "yaxis.range": yRange(lo, hi, $("showFx").checked), "yaxis.autorange": false }, xt));
+    const y2 = cfg().showRes ? { "yaxis2.range": y2Range(lo, hi), "yaxis2.autorange": false } : {};
+    Plotly.relayout(gd, Object.assign({ "yaxis.range": yRange(lo, hi, $("showFx").checked), "yaxis.autorange": false }, y2, xt));
   }
   function onRelayout(ev) {
     // Kendi y ekseni ve etiket güncellemelerimiz de bu olayı tetikler; yalnızca tarih aralığı değişince ölçekle
@@ -400,8 +430,8 @@
   function renderMeta() {
     const m = S.data.meta, d = S.dates;
     $("metaLine").textContent = L(
-      `Veri: ${fdate(d[0])} – ${fdate(d[S.N - 1])} (günlük). Son gözlemler: TLREF ${fdate(m.last.TLREF)}, SOFR ${fdate(m.last.SOFR)}, €STR ${fdate(m.last["€STR"])}, SONIA ${fdate(m.last.SONIA)}, TONA ${fdate(m.last.TONA)}. Veri güncelleme: ${fdate(m.generated)}.`,
-      `Data: ${fdate(d[0])} – ${fdate(d[S.N - 1])} (daily). Latest observations: TLREF ${fdate(m.last.TLREF)}, SOFR ${fdate(m.last.SOFR)}, €STR ${fdate(m.last["€STR"])}, SONIA ${fdate(m.last.SONIA)}, TONA ${fdate(m.last.TONA)}. Data updated: ${fdate(m.generated)}.`);
+      `Veri: ${fdate(d[0])} – ${fdate(d[S.N - 1])} (günlük). Son gözlemler: TLREF ${fdate(m.last.TLREF)}, SOFR ${fdate(m.last.SOFR)}, €STR ${fdate(m.last["€STR"])}, SONIA ${fdate(m.last.SONIA)}, TONA ${fdate(m.last.TONA)}${m.last.reserves ? `, net rezerv ${fdate(m.last.reserves)}` : ""}. Veri güncelleme: ${fdate(m.generated)}.`,
+      `Data: ${fdate(d[0])} – ${fdate(d[S.N - 1])} (daily). Latest observations: TLREF ${fdate(m.last.TLREF)}, SOFR ${fdate(m.last.SOFR)}, €STR ${fdate(m.last["€STR"])}, SONIA ${fdate(m.last.SONIA)}, TONA ${fdate(m.last.TONA)}${m.last.reserves ? `, net reserves ${fdate(m.last.reserves)}` : ""}. Data updated: ${fdate(m.generated)}.`);
     $("metaFiles").textContent = L("Kaynak dosyalar (data/raw): ", "Source files (data/raw): ") + Object.values(m.files).join(", ") + ".";
   }
   function setLanguage(lang) {
@@ -431,6 +461,7 @@
     $("spread").addEventListener("change", renderAll);
     $("margin").addEventListener("change", () => { cfg(); renderCalc(); S.keepZoom = true; renderChart(); S.keepZoom = false; });
     $("showEvents").addEventListener("change", () => { S.keepZoom = true; renderChart(); S.keepZoom = false; });
+    if ($("showRes")) $("showRes").addEventListener("change", () => { S.keepZoom = true; renderChart(); S.keepZoom = false; });
     $("showFx").addEventListener("change", () => {
       Plotly.restyle("mainChart", { visible: $("showFx").checked }, [3]);
       rescaleY();

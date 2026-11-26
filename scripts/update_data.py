@@ -11,6 +11,11 @@ Beklenen dosyalar (adın bu kelimeyle başlaması yeterli, .xlsx veya .csv):
   sonia  Bank of England IUDSOIA (Date, değer)
   tona   Bank of Japan FM01'STRDCLUCON (işlem tarihi, değer; NA = işlem günü değil)
 
+İsteğe bağlı:
+  evds_reserves  TCMB EVDS haftalık rezervler: TP.AB.TOPLAM (brüt rezerv, milyon USD) ve
+                 TP.AB.N06 (net rezerv, bin TL). Net rezerv, aynı gün belirlenen TCMB USD
+                 orta kuruyla milyar USD'ye çevrilir. Dosya yoksa rezerv paneli boş kalır.
+
 Kullanım:  python scripts/update_data.py
 """
 from __future__ import annotations
@@ -26,6 +31,8 @@ ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "data" / "raw"
 OUT_JSON = ROOT / "data" / "dataset.json"
 OUT_CSV = ROOT / "data" / "dataset.csv"
+OUT_RES_CSV = ROOT / "data" / "reserves.csv"
+RESERVE_WORDS = ("reserv", "rezerv")  # rezerv dosyası adında geçen kelimeler
 
 START = pd.Timestamp("2019-01-01")
 
@@ -39,12 +46,24 @@ FUNDING = {
 TL_BASIS = 365  # TLREF: ACT/365
 
 
+def is_reserve(p: Path) -> bool:
+    return any(w in p.name.lower() for w in RESERVE_WORDS)
+
+
 def find_all(prefix: str) -> list[Path]:
+    # Rezerv dosyası (ör. evds_reserves.xlsx) "evds" ile başlasa da kur/TLREF dosyası sayılmaz.
     hits = sorted(p for p in RAW.iterdir()
-                  if p.name.lower().startswith(prefix) and p.suffix.lower() in (".xlsx", ".xls", ".csv"))
+                  if p.name.lower().startswith(prefix) and p.suffix.lower() in (".xlsx", ".xls", ".csv")
+                  and not is_reserve(p))
     if not hits:
         sys.exit(f"data/raw içinde '{prefix}' ile başlayan dosya bulunamadı.")
     return hits
+
+
+def find_reserves() -> Path | None:
+    hits = sorted((p for p in RAW.iterdir() if is_reserve(p) and p.suffix.lower() in (".xlsx", ".xls", ".csv")),
+                  key=lambda p: ({".xlsx": 0, ".xls": 1, ".csv": 2}[p.suffix.lower()], p.name))
+    return hits[0] if hits else None
 
 
 def pick_file(prefix: str) -> Path:
@@ -82,6 +101,18 @@ def read_evds(p: Path) -> pd.DataFrame:
         div = 100.0 if c == "JPY" else 1.0  # EVDS: 100 JPY = … TL
         out[f"{c}_A"], out[f"{c}_S"] = a / div, s / div
     return out[out.index >= START].sort_index()
+
+
+def read_reserves(p: Path) -> pd.DataFrame:
+    """Haftalık TCMB rezervleri: brüt (milyon USD) ve net (bin TL)."""
+    df = read_any(p)
+    df = df[df.iloc[:, 0].astype(str).str.match(r"^\d{2}-\d{2}-\d{4}$")].copy()
+    df.index = pd.to_datetime(df.iloc[:, 0], format="%d-%m-%Y")
+    df.columns = [str(c).replace(".", "_") for c in df.columns]
+    out = pd.DataFrame(index=df.index)
+    out["gross_musd"] = pd.to_numeric(df.get("TP_AB_TOPLAM"), errors="coerce")
+    out["net_ktl"] = pd.to_numeric(df.get("TP_AB_N06"), errors="coerce")
+    return out[out.index >= START].sort_index().dropna(how="all")
 
 
 def read_sofr(p: Path) -> pd.Series:
@@ -226,6 +257,28 @@ def main() -> None:
         csv[f"{r}_fixing"] = pub
         csv[f"{r}_effective"] = used
         csv[f"{r}_index"] = idx
+
+    # Haftalık rezervler (isteğe bağlı panel)
+    res_file = find_reserves()
+    if res_file is not None:
+        res = read_reserves(res_file)
+        usd_mid = ((ev["USD_A"] + ev["USD_S"]) / 2).dropna()
+        rate = usd_mid.reindex(usd_mid.index.union(res.index)).ffill().reindex(res.index)
+        res["usd_mid"] = rate
+        res["net_busd"] = res["net_ktl"] / rate / 1e6       # bin TL → milyar USD
+        res["gross_busd"] = res["gross_musd"] / 1e3          # milyon USD → milyar USD
+        res = res.dropna(subset=["net_busd"])
+        js["reserves"] = {
+            "dates": [d.strftime("%Y-%m-%d") for d in res.index],
+            "net": [round(float(x), 3) for x in res["net_busd"]],
+            "gross": [None if pd.isna(x) else round(float(x), 3) for x in res["gross_busd"]],
+        }
+        js["meta"]["files"]["reserves"] = res_file.name
+        js["meta"]["last"]["reserves"] = res.index[-1].strftime("%Y-%m-%d")
+        res.index.name = "date"
+        res[["gross_musd", "net_ktl", "usd_mid", "gross_busd", "net_busd"]].to_csv(OUT_RES_CSV, float_format="%.10g")
+        print(f"  rezerv {len(res):5d} hafta, {res.index[0].date()} → {res.index[-1].date()}, "
+              f"son net {res['net_busd'].iloc[-1]:.1f} mlr USD")
 
     OUT_JSON.write_text(json.dumps(js, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     csv.to_csv(OUT_CSV, float_format="%.10g")

@@ -81,6 +81,7 @@
         <label><input type="checkbox" id="spread" checked> <span data-lang="tr">Kur makası</span><span data-lang="en">FX spread</span></label>
         <label><input type="checkbox" id="showFx"> <span data-lang="tr">Kur değişimi</span><span data-lang="en">FX change</span></label>
         <label><input type="checkbox" id="showEvents" checked> <span data-lang="tr">Olaylar</span><span data-lang="en">Events</span></label>
+        <label><input type="checkbox" id="showRes"> <span data-lang="tr">Net rezervler</span><span data-lang="en">Net reserves</span></label>
       </div>
     </div>
   </div>
@@ -323,11 +324,14 @@
       <li data-lang="tr"><strong>Döviz kurları:</strong> TCMB EVDS, USD, EUR, GBP ve JPY döviz alış ve satış kurları, TP.DK.*.A.YTL ve TP.DK.*.S.YTL (günlük; JPY 100 yen başına verilir).</li>
       <li data-lang="en"><strong>Exchange rates:</strong> CBRT EVDS, USD, EUR, GBP and JPY buying and selling rates, TP.DK.*.A.YTL and TP.DK.*.S.YTL (daily; JPY quoted per 100 yen).</li>
       <li data-lang="tr"><strong>SOFR:</strong> Federal Reserve Bank of New York. <strong>€STR:</strong> Avrupa Merkez Bankası. <strong>SONIA:</strong> Bank of England (IUDSOIA). <strong>TONA:</strong> Bank of Japan (FM01'STRDCLUCON).</li>
+      <li data-lang="tr"><strong>Net rezervler:</strong> TCMB EVDS, haftalık rezervler, TP.AB.N06 (bin TL). Seri, ait olduğu haftanın son günü belirlenen TCMB USD orta kuruyla milyar USD'ye çevrilir ve grafikte sağ eksende gösterilir.</li>
       <li data-lang="en"><strong>SOFR:</strong> Federal Reserve Bank of New York. <strong>€STR:</strong> European Central Bank. <strong>SONIA:</strong> Bank of England (IUDSOIA). <strong>TONA:</strong> Bank of Japan (FM01'STRDCLUCON).</li>
+      <li data-lang="en"><strong>Net reserves:</strong> CBRT EVDS, weekly reserves, TP.AB.N06 (thousand TL). The series is converted to USD billions at the CBRT USD mid rate set on the last day of the week and shown on the right axis of the chart.</li>
     </ul>
     <p class="downloads">
       <a class="btn" href="data/dataset.csv" download><span data-lang="tr">Birleştirilmiş veri seti (CSV)</span><span data-lang="en">Combined dataset (CSV)</span></a>
       <a class="btn ghost" href="data/dataset.json" download>JSON</a>
+      <a class="btn ghost" href="data/reserves.csv" download><span data-lang="tr">Net rezervler (CSV)</span><span data-lang="en">Net reserves (CSV)</span></a>
     </p>
     <p class="meta" id="metaFiles"></p>
   </section>
@@ -342,6 +346,6 @@
 </footer>
 
 <!--DATA-->
-<script src="assets/js/app.js?v=5"></script>
+<script src="assets/js/app.js?v=6"></script>
 </body>
 </html>

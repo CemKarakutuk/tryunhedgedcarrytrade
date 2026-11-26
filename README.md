@@ -51,6 +51,7 @@ Upload refreshed files to `data/raw/`; the GitHub Actions workflow rebuilds the 
 | `estr` | €STR | ECB Data Portal |
 | `sonia` | IUDSOIA | Bank of England |
 | `tona` | FM01'STRDCLUCON | Bank of Japan |
+| `evds_reserves` (optional) | Weekly CBRT reserves: TP.AB.N06 (net, thousand TL), TP.AB.TOPLAM (gross, USD mn) | CBRT EVDS |
 
 To rebuild locally:
 
