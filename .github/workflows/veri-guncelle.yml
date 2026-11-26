@@ -25,6 +25,10 @@ on:
         description: "Accept large revisions of old observations (only after checking the log)"
         type: boolean
         default: false
+      only:
+        description: "Only these datasets, comma-separated (e.g. balance_daily,swaps_daily); empty = all"
+        type: string
+        default: ""
   push:
     branches: [main]
     paths:
@@ -76,12 +80,17 @@ jobs:
           EVDS_API_KEY: ${{ secrets.EVDS_API_KEY }}
           FULL: ${{ inputs.full && '--full' || '' }}
           REVS: ${{ inputs.accept_revisions && '--accept-revisions' || '' }}
-        run: python scripts/fetch_data.py $FULL $REVS
+          ONLY: ${{ inputs.only }}
+        run: python scripts/fetch_data.py $FULL $REVS ${ONLY:+--only "$ONLY"}
 
       - name: Build carry dataset
         run: python scripts/update_data.py
 
       - name: Build reserve datasets
+        env:
+          # "1" publishes the swap-adjusted net reserve estimate (only if all automatic checks pass).
+          # Switch on after reviewing "Swap-adjusted estimate diagnostics" in this step's log.
+          PUBLISH_SWAP_ESTIMATE: "1"
         run: python scripts/update_reserves.py
 
       - name: Validate (restore last valid data on failure)
