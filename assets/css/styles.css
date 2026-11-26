@@ -211,3 +211,8 @@ input[type=number].days { width: 110px; }
 .st-current { color: #2e7d32; }
 .st-stale { color: #b26a00; }
 .st-unavailable, .st-validation_failed { color: #c62828; }
+
+/* Ana grafik: dönem / yıllıklandırılmış seçimi (sol üst) */
+.chart-box { position: relative; }
+.chart-mode { position: absolute; top: 8px; left: 12px; z-index: 5; background: var(--panel); }
+.seg-sm button { padding: 4px 10px; font-size: .82rem; }
