@@ -41,6 +41,9 @@
   const dayDiff = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5);
   const addDays = (s, n) => new Date(Date.parse(s) + n * 864e5).toISOString().slice(0, 10);
   const annualize = (r, n) => (r == null || n <= 0 || 1 + r <= 0) ? null : Math.pow(1 + r, 365 / n) - 1;
+  /* Grafikte gösterilen değer: dönem getirisi ya da (seçiliyse) yıllıklandırılmış getiri, % */
+  const yv = (p) => { const v = S.annual ? p.ann : p.r; return v == null ? null : v * 100; };
+  const fxv = (p) => { const v = S.annual ? annualize(p.fx, p.n) : p.fx; return v == null ? null : v * 100; };
   const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
   const fxDp = (code) => (code === "JPY" ? 6 : 4);
   const intIn = (id, def, max) => Math.max(1, Math.min(max, Math.round(parseFloat($(id).value) || def)));
@@ -60,6 +63,7 @@
     days: intIn("days", 365, 2500),
     spread: $("spread").checked,
     showFx: $("showFx").checked,
+    annual: !!($("annual") && $("annual").checked),
     showRes: !!($("showRes") && $("showRes").checked && resSer()),
     margin: (S.marginBps = Math.max(0, parseInt($("margin").value, 10) || 0)),
   });
@@ -148,7 +152,10 @@
     const k = cfg(), c = S.data.cur[k.cur], cur = CUR[k.cur];
     const s = compute(k);
     S.rows = s;
-    $("chartTitle").textContent = L(`Carry trade getirisi: ${nf(k.days)} günlük vade`, `Carry trade return: ${nf(k.days)}-day holding period`);
+    S.annual = k.annual;
+    $("chartTitle").textContent = k.annual
+      ? L(`Yıllıklandırılmış carry trade getirisi: ${nf(k.days)} günlük vade`, `Annualised carry trade return: ${nf(k.days)}-day holding period`)
+      : L(`Carry trade getirisi: ${nf(k.days)} günlük vade`, `Carry trade return: ${nf(k.days)}-day holding period`);
     const gd = $("mainChart");
     if (!s.length) {
       Plotly.purge(gd); gd.__bound = false;
@@ -159,22 +166,27 @@
     }
     if (gd.querySelector(".chart-msg")) gd.innerHTML = "";
 
-    const x = s.map((p) => p.date), y = s.map((p) => p.r * 100);
+    const x = s.map((p) => p.date), y = s.map(yv);
     const custom = s.map((p) => [pct(p.r, 2), pct(p.ann, 2), fdate(p.exit), nf(p.n), rate(p.tlAvg), rate(p.fAvg, 2), pct(p.fx, 2), pct(p.gtl - 1, 2)]);
     const gain = css("--gain"), loss = css("--loss");
-    const hov = `<b>${L("Carry getirisi", "Carry return")}: %{customdata[0]}</b><br>` +
-      `${L("Yıllıklandırılmış", "Annualised")}: %{customdata[1]}<br>` +
+    const hov = (k.annual
+      ? `<b>${L("Yıllıklandırılmış", "Annualised")}: %{customdata[1]}</b><br>${L("Carry getirisi", "Carry return")}: %{customdata[0]}<br>`
+      : `<b>${L("Carry getirisi", "Carry return")}: %{customdata[0]}</b><br>${L("Yıllıklandırılmış", "Annualised")}: %{customdata[1]}<br>`) +
       `${L("Kapanış", "Close")}: %{customdata[2]} (%{customdata[3]} ${L("gün", "days")})<br>` +
       `${L("TL getirisi", "TL return")}: %{customdata[7]} · ${k.cur}/TRY: %{customdata[6]}<br>` +
       `TLREF ${L("ort.", "avg.")}: %{customdata[4]} · ${rateLabel(c)} ${L("ort.", "avg.")}: %{customdata[5]}<extra></extra>`;
     const traces = [
-      { x, y: y.map((v) => Math.max(v, 0)), type: "scatter", mode: "lines", line: { width: 0 },
+      { x, y: y.map((v) => v == null ? null : Math.max(v, 0)), type: "scatter", mode: "lines", line: { width: 0 },
         fill: "tozeroy", fillcolor: gain + "59", hoverinfo: "skip", showlegend: false },
-      { x, y: y.map((v) => Math.min(v, 0)), type: "scatter", mode: "lines", line: { width: 0 },
+      { x, y: y.map((v) => v == null ? null : Math.min(v, 0)), type: "scatter", mode: "lines", line: { width: 0 },
         fill: "tozeroy", fillcolor: loss + "59", hoverinfo: "skip", showlegend: false },
-      { x, y, name: L(`Carry trade getirisi (${k.cur} borçlanarak, ${nf(k.days)} gün)`, `Carry trade return (${k.cur}-funded, ${nf(k.days)} days)`),
+      { x, y, name: k.annual
+          ? L(`Yıllıklandırılmış carry getirisi (${k.cur} borçlanarak, ${nf(k.days)} gün)`, `Annualised carry return (${k.cur}-funded, ${nf(k.days)} days)`)
+          : L(`Carry trade getirisi (${k.cur} borçlanarak, ${nf(k.days)} gün)`, `Carry trade return (${k.cur}-funded, ${nf(k.days)} days)`),
         type: "scatter", mode: "lines", line: { color: css("--accent"), width: 2 }, customdata: custom, hovertemplate: hov },
-      { x, y: s.map((p) => p.fx * 100), name: L(`Kur değişimi (${k.cur}/TRY, ${nf(k.days)} gün)`, `FX change (${k.cur}/TRY, ${nf(k.days)} days)`),
+      { x, y: s.map(fxv), name: k.annual
+          ? L(`Kur değişimi, yıllıklandırılmış (${k.cur}/TRY, ${nf(k.days)} gün)`, `FX change, annualised (${k.cur}/TRY, ${nf(k.days)} days)`)
+          : L(`Kur değişimi (${k.cur}/TRY, ${nf(k.days)} gün)`, `FX change (${k.cur}/TRY, ${nf(k.days)} days)`),
         type: "scatter", mode: "lines", line: { color: css("--fx"), width: 1.4, dash: "dot" }, visible: k.showFx, hoverinfo: "skip" },
     ];
     // Haftalık TCMB net rezervleri: sağ eksen (isteğe bağlı)
@@ -200,7 +212,8 @@
       // Yakınlaştırma yalnızca tarih ekseninde; y ekseni görünen aralığa göre rescaleY() ile ölçeklenir
       yaxis: { fixedrange: true, showgrid: true, gridcolor: css("--grid"), griddash: "dot", zerolinecolor: ink, zerolinewidth: 1.2,
         range: yRange(x[0], x[x.length - 1], k.showFx), autorange: false,
-        title: { text: L(`${nf(k.days)} günlük getiri (%)`, `${nf(k.days)}-day return (%)`), font: { color: css("--muted"), size: 12 } } },
+        title: { text: k.annual ? L(`Yıllıklandırılmış getiri (%, ${nf(k.days)} günlük vade)`, `Annualised return (%, ${nf(k.days)}-day holding)`)
+          : L(`${nf(k.days)} günlük getiri (%)`, `${nf(k.days)}-day return (%)`), font: { color: css("--muted"), size: 12 } } },
       shapes: [], annotations: [],
     };
     if (k.showRes) {
@@ -241,9 +254,13 @@
 
     const sp = k.spread ? L("kur makası dahil (giriş alış, çıkış satış kuru)", "FX spread included (entry at buying, exit at selling rate)")
       : L("kur makası hariç (orta kur)", "FX spread excluded (mid rate)");
+    const an = k.annual
+      ? L(`yıllıklandırılmış, (1 + R)^(365/n) − 1 ile; n açılış ile kapanış arasındaki takvim günü${k.days < 30 ? "; kısa vadelerde yıllıklandırma dalgalanmaları büyütür" : ""}`,
+        `annualised as (1 + R)^(365/n) − 1, n being calendar days from open to close${k.days < 30 ? "; annualising short holding periods magnifies swings" : ""}`)
+      : L("yıllıklandırılmamış", "not annualised");
     $("mainCaption").textContent = isEN()
-      ? `Figure 1. Gross return of borrowing ${cur.en} overnight at ${rateLabel(c)} in ${cur.city} and earning TLREF, held for ${nf(k.days)} days (in ${k.cur}, %, not annualised); ${sp}. Each point shows the position opened on that day.`
-      : `Şekil 1. ${cur.from} ${rateLabel(c)} ile gecelik ${cur.tr} borçlanıp TLREF ile değerlendirilen pozisyonun ${nf(k.days)} günlük brüt getirisi (${k.cur} bazında, %, yıllıklandırılmamış); ${sp}. Her nokta, o gün açılan pozisyonu gösterir.`;
+      ? `Figure 1. Gross return of borrowing ${cur.en} overnight at ${rateLabel(c)} in ${cur.city} and earning TLREF, held for ${nf(k.days)} days (in ${k.cur}, %, ${an}); ${sp}. Each point shows the position opened on that day.`
+      : `Şekil 1. ${cur.from} ${rateLabel(c)} ile gecelik ${cur.tr} borçlanıp TLREF ile değerlendirilen pozisyonun ${nf(k.days)} günlük brüt getirisi (${k.cur} bazında, %, ${an}); ${sp}. Her nokta, o gün açılan pozisyonu gösterir.`;
     updateStats();
   }
 
@@ -252,8 +269,8 @@
     let mn = Infinity, mx = -Infinity;
     for (const p of S.rows) {
       if (p.date < lo || p.date > hi) continue;
-      const vals = withFx ? [p.r * 100, p.fx * 100] : [p.r * 100];
-      for (const v of vals) { if (v < mn) mn = v; if (v > mx) mx = v; }
+      const vals = withFx ? [yv(p), fxv(p)] : [yv(p)];
+      for (const v of vals) { if (v == null || !isFinite(v)) continue; if (v < mn) mn = v; if (v > mx) mx = v; }
     }
     if (!isFinite(mn)) return [-1, 1];
     const pad = Math.max((mx - mn) * 0.08, 0.05);
@@ -517,6 +534,7 @@
       safeSet("tlref-res", $("resSeries").value);
       S.keepZoom = true; renderChart(); S.keepZoom = false;
     });
+    if ($("annual")) $("annual").addEventListener("change", () => { S.keepZoom = true; renderChart(); S.keepZoom = false; });
     $("showFx").addEventListener("change", () => {
       Plotly.restyle("mainChart", { visible: $("showFx").checked }, [3]);
       rescaleY();
