@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-26T21:51:08Z",
+ "generated": "2026-11-26T22:22:32Z",
  "methodologyVersion": "2.0.0",
  "unit": "USD billion",
  "sources": {
@@ -49,33 +49,35 @@
    "description": "Analytical balance sheet: foreign assets",
    "nativeUnit": "thousand TRY (expected)",
    "frequency": "daily",
-   "firstObs": "2023-01-26",
+   "firstObs": "2019-01-02",
    "lastObs": "2026-11-25",
-   "count": 961
+   "count": 1981
   },
   "TP.AB.A10": {
    "description": "Analytical balance sheet: total FX liabilities",
    "nativeUnit": "thousand TRY (expected)",
    "frequency": "daily",
-   "firstObs": "2023-01-26",
+   "firstObs": "2019-01-02",
    "lastObs": "2026-11-25",
-   "count": 961
+   "count": 1981
   },
   "TP.SWAPTEKTAR.TOTALSTOKALIMYONLU": {
    "description": "Domestic buy-side swap stock",
    "frequency": "daily",
    "nativeUnit": "million USD",
-   "firstObs": "2023-01-27",
+   "conversion": "/ 1,000",
+   "firstObs": "2021-01-04",
    "lastObs": "2026-11-26",
-   "count": 961
+   "count": 1481
   },
   "TP.SWAPTEKTAR.TOTALSTOKSATIMYONLU": {
    "description": "Domestic sell-side (reverse) swap stock",
    "frequency": "daily",
    "nativeUnit": "million USD",
-   "firstObs": "2023-01-27",
+   "conversion": "/ 1,000",
+   "firstObs": "2021-01-04",
    "lastObs": "2026-11-26",
-   "count": 961
+   "count": 1481
   },
   "TP.DOVVARNC.K14": {
    "description": "IRFCL II.2 forwards, futures and swaps (net)",
@@ -105,7 +107,7 @@
     "detail": ""
    },
    {
-    "check": "inputs: domestic swap stocks with identified unit",
+    "check": "inputs: domestic swap stocks",
     "ok": true,
     "detail": ""
    },
@@ -115,9 +117,14 @@
     "detail": ""
    },
    {
+    "check": "unit: domestic swaps in million USD agree with reported values",
+    "ok": true,
+    "detail": "2026-04-06: 13.517 vs 13.517; 2026-05-26: 3.715 vs 3.715; 2026-09-30: 3.650 vs 3.650; 2026-11-25: 4.685 vs 4.685"
+   },
+   {
     "check": "unit: analytical balance sheet difference within ±300 USD bn",
     "ok": true,
-    "detail": "max |NetABS| = 93.4"
+    "detail": "max |net_abs| = 93.4"
    },
    {
     "check": "foreign swap estimate available for at least one month",
