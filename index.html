@@ -25,7 +25,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/styles.css?v=6">
+<link rel="stylesheet" href="assets/css/styles.css?v=7">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
 <!--PLOTLY-->
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
@@ -79,8 +79,6 @@
       <span class="ctl-label"><span data-lang="tr">Gösterim</span><span data-lang="en">Display</span></span>
       <div class="check-row">
         <label><input type="checkbox" id="spread" checked> <span data-lang="tr">Kur makası</span><span data-lang="en">FX spread</span></label>
-        <label><input type="checkbox" id="annual"> <span data-lang="tr">Yıllıklandırılmış</span><span data-lang="en">Annualised</span></label>
-        <label><input type="checkbox" id="showFx"> <span data-lang="tr">Kur değişimi</span><span data-lang="en">FX change</span></label>
         <label><input type="checkbox" id="showEvents" checked> <span data-lang="tr">Olaylar</span><span data-lang="en">Events</span></label>
         <label><input type="checkbox" id="showRes"> <span data-lang="tr">TCMB rezervleri</span><span data-lang="en">CBRT reserves</span></label>
       </div>
@@ -95,11 +93,17 @@
 
   <section class="block" id="bulgu">
     <h2><span class="num">1</span><span id="chartTitle">Carry trade getirisi</span></h2>
-    <div id="mainChart" class="chart chart-main" role="img" aria-label="Carry trade getirisi"></div>
+    <div class="chart-box">
+      <div class="seg seg-sm chart-mode" role="radiogroup" id="modeSeg" aria-label="Getiri gösterimi / Return display">
+        <button type="button" role="radio" data-mode="period" aria-checked="true"><span data-lang="tr">Dönem getirisi</span><span data-lang="en">Period return</span></button>
+        <button type="button" role="radio" data-mode="annual" aria-checked="false"><span data-lang="tr">Yıllıklandırılmış</span><span data-lang="en">Annualised</span></button>
+      </div>
+      <div id="mainChart" class="chart chart-main" role="img" aria-label="Carry trade getirisi"></div>
+    </div>
     <p class="figcap below" id="mainCaption"></p>
     <p class="chart-note">
-      <span data-lang="tr">Her nokta, o gün açılıp girilen gün sayısı sonunda kapatılan pozisyonun o süredeki getirisidir (yıllıklandırılmamış). Bir güne tıklayarak aşağıdaki hesaplamayı o tarihten başlatabilirsiniz. Çift tıklama tüm döneme döner.</span>
-      <span data-lang="en">Each point is the return of a position opened on that day and closed after the entered number of days, over that period (not annualised). Click a day to start the calculation below from that date. Double-click to return to the full period.</span>
+      <span data-lang="tr">Her nokta, o gün açılıp girilen gün sayısı sonunda kapatılan pozisyonun o süredeki getirisidir; grafiğin sol üstünden yıllıklandırılmış getiriye geçebilirsiniz. Bir güne tıklayarak aşağıdaki hesaplamayı o tarihten başlatabilirsiniz. Çift tıklama tüm döneme döner.</span>
+      <span data-lang="en">Each point is the return of a position opened on that day and closed after the entered number of days, over that period; switch to the annualised return at the top left of the chart. Click a day to start the calculation below from that date. Double-click to return to the full period.</span>
     </p>
     <p class="intro">
       <span data-lang="tr">Bu çalışma, düşük faizli bir para biriminde gecelik borçlanıp Türk lirası gecelik referans faizi TLREF ile değerlendirilen carry trade'in 2019'dan bu yana sağladığı brüt getiriyi inceler. Fonlama tarafında dört merkez bankasının gecelik risksiz referans faizleri kullanılır: ABD'de SOFR, euro bölgesinde €STR, Birleşik Krallık'ta SONIA ve Japonya'da TONA. Getiri, borçlanılan döviz cinsinden ve borçlanılan tutara göre hesaplanır.</span>
@@ -373,6 +377,6 @@
 </footer>
 
 <!--DATA-->
-<script src="assets/js/app.js?v=8"></script>
+<script src="assets/js/app.js?v=9"></script>
 </body>
 </html>
