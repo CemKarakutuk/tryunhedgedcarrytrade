@@ -43,7 +43,6 @@
   const annualize = (r, n) => (r == null || n <= 0 || 1 + r <= 0) ? null : Math.pow(1 + r, 365 / n) - 1;
   /* Grafikte gösterilen değer: dönem getirisi ya da (seçiliyse) yıllıklandırılmış getiri, % */
   const yv = (p) => { const v = S.annual ? p.ann : p.r; return v == null ? null : v * 100; };
-  const fxv = (p) => { const v = S.annual ? annualize(p.fx, p.n) : p.fx; return v == null ? null : v * 100; };
   const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
   const fxDp = (code) => (code === "JPY" ? 6 : 4);
   const intIn = (id, def, max) => Math.max(1, Math.min(max, Math.round(parseFloat($(id).value) || def)));
@@ -62,8 +61,7 @@
     cur: document.querySelector("#curSeg [aria-checked=true]").dataset.cur,
     days: intIn("days", 365, 2500),
     spread: $("spread").checked,
-    showFx: $("showFx").checked,
-    annual: !!($("annual") && $("annual").checked),
+    annual: !!document.querySelector('#modeSeg [data-mode="annual"][aria-checked=true]'),
     showRes: !!($("showRes") && $("showRes").checked && resSer()),
     margin: (S.marginBps = Math.max(0, parseInt($("margin").value, 10) || 0)),
   });
@@ -184,10 +182,6 @@
           ? L(`Yıllıklandırılmış carry getirisi (${k.cur} borçlanarak, ${nf(k.days)} gün)`, `Annualised carry return (${k.cur}-funded, ${nf(k.days)} days)`)
           : L(`Carry trade getirisi (${k.cur} borçlanarak, ${nf(k.days)} gün)`, `Carry trade return (${k.cur}-funded, ${nf(k.days)} days)`),
         type: "scatter", mode: "lines", line: { color: css("--accent"), width: 2 }, customdata: custom, hovertemplate: hov },
-      { x, y: s.map(fxv), name: k.annual
-          ? L(`Kur değişimi, yıllıklandırılmış (${k.cur}/TRY, ${nf(k.days)} gün)`, `FX change, annualised (${k.cur}/TRY, ${nf(k.days)} days)`)
-          : L(`Kur değişimi (${k.cur}/TRY, ${nf(k.days)} gün)`, `FX change (${k.cur}/TRY, ${nf(k.days)} days)`),
-        type: "scatter", mode: "lines", line: { color: css("--fx"), width: 1.4, dash: "dot" }, visible: k.showFx, hoverinfo: "skip" },
     ];
     // Haftalık TCMB net rezervleri: sağ eksen (isteğe bağlı)
     if (k.showRes) {
@@ -204,14 +198,17 @@
     const layout = {
       paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
       font: { family: css("--sans") || "IBM Plex Sans, sans-serif", color: ink, size: 12.5 },
-      margin: { l: 58, r: k.showRes ? 62 : 18, t: 40, b: 44 }, hovermode: "x unified", dragmode: "zoom",
-      hoverlabel: { bgcolor: "#ffffff", bordercolor: rule, font: { color: ink, size: 12.5 } },
-      legend: { orientation: "h", x: 0, y: 1.07, font: { color: ink, size: 12.5 } },
+      margin: { l: 58, r: k.showRes ? 62 : 18, t: 48, b: 44 }, hovermode: "x", dragmode: "zoom",
+      hoverlabel: { bgcolor: "#ffffff", bordercolor: rule, align: "left", namelength: 0, font: { color: ink, size: 12.5 } },
+      // Tek çizgide başlık yeterli; gösterge yalnızca rezerv serisi açıkken, seçim düğmesi ile araç çubuğunun arasında
+      showlegend: k.showRes && !narrow,
+      legend: { orientation: "h", x: 0.5, xanchor: "center", y: 1, yanchor: "bottom", font: { color: ink, size: 12.5 } },
       xaxis: { type: "date", showgrid: true, gridcolor: css("--grid"), griddash: "dot", linecolor: css("--ink-2"), tickcolor: rule,
+        showspikes: true, spikemode: "across", spikesnap: "data", spikedash: "dot", spikethickness: 1, spikecolor: css("--ink-2"),
         hoverformat: L("%d.%m.%Y açılış", "Open: %d %b %Y"), dtick: narrow ? "M24" : "M12", tickformat: "%Y", ticklabelmode: "period" },
       // Yakınlaştırma yalnızca tarih ekseninde; y ekseni görünen aralığa göre rescaleY() ile ölçeklenir
       yaxis: { fixedrange: true, showgrid: true, gridcolor: css("--grid"), griddash: "dot", zerolinecolor: ink, zerolinewidth: 1.2,
-        range: yRange(x[0], x[x.length - 1], k.showFx), autorange: false,
+        range: yRange(x[0], x[x.length - 1]), autorange: false,
         title: { text: k.annual ? L(`Yıllıklandırılmış getiri (%, ${nf(k.days)} günlük vade)`, `Annualised return (%, ${nf(k.days)}-day holding)`)
           : L(`${nf(k.days)} günlük getiri (%)`, `${nf(k.days)}-day return (%)`), font: { color: css("--muted"), size: 12 } } },
       shapes: [], annotations: [],
@@ -265,12 +262,14 @@
   }
 
   /* Görünen tarih aralığındaki en düşük ve en yüksek değere göre y ekseni sınırları */
-  function yRange(lo, hi, withFx) {
+  function yRange(lo, hi) {
     let mn = Infinity, mx = -Infinity;
     for (const p of S.rows) {
       if (p.date < lo || p.date > hi) continue;
-      const vals = withFx ? [yv(p), fxv(p)] : [yv(p)];
-      for (const v of vals) { if (v == null || !isFinite(v)) continue; if (v < mn) mn = v; if (v > mx) mx = v; }
+      const v = yv(p);
+      if (v == null || !isFinite(v)) continue;
+      if (v < mn) mn = v;
+      if (v > mx) mx = v;
     }
     if (!isFinite(mn)) return [-1, 1];
     const pad = Math.max((mx - mn) * 0.08, 0.05);
@@ -301,7 +300,7 @@
       : days > (narrow ? 500 : 300) ? { "xaxis.dtick": "M3", "xaxis.tickformat": "%b %Y", "xaxis.ticklabelmode": "instant" }
       : { "xaxis.dtick": "M1", "xaxis.tickformat": "%b %Y", "xaxis.ticklabelmode": "instant" };
     const y2 = cfg().showRes ? { "yaxis2.range": y2Range(lo, hi), "yaxis2.autorange": false } : {};
-    Plotly.relayout(gd, Object.assign({ "yaxis.range": yRange(lo, hi, $("showFx").checked), "yaxis.autorange": false }, y2, xt));
+    Plotly.relayout(gd, Object.assign({ "yaxis.range": yRange(lo, hi), "yaxis.autorange": false }, y2, xt));
   }
   function onRelayout(ev) {
     // Kendi y ekseni ve etiket güncellemelerimiz de bu olayı tetikler; yalnızca tarih aralığı değişince ölçekle
@@ -534,11 +533,11 @@
       safeSet("tlref-res", $("resSeries").value);
       S.keepZoom = true; renderChart(); S.keepZoom = false;
     });
-    if ($("annual")) $("annual").addEventListener("change", () => { S.keepZoom = true; renderChart(); S.keepZoom = false; });
-    $("showFx").addEventListener("change", () => {
-      Plotly.restyle("mainChart", { visible: $("showFx").checked }, [3]);
-      rescaleY();
-    });
+    document.querySelectorAll("#modeSeg button").forEach((b) => b.addEventListener("click", () => {
+      document.querySelectorAll("#modeSeg button").forEach((x) => x.setAttribute("aria-checked", String(x === b)));
+      safeSet("tlref-mode", b.dataset.mode);
+      S.keepZoom = true; renderChart(); S.keepZoom = false;
+    }));
     const calcThenMark = () => { renderCalc(); S.keepZoom = true; renderChart(); S.keepZoom = false; };
     $("cStart").addEventListener("change", calcThenMark);
     $("cDays").addEventListener("input", debounce(renderCalc));
@@ -581,6 +580,9 @@
     if (S.res && !(S.res.series && S.res.series.net)) S.res = null;
     registerLocale();
     prepare(data);
+    const savedMode = safeGet("tlref-mode");
+    if (savedMode === "annual" || savedMode === "period")
+      document.querySelectorAll("#modeSeg button").forEach((x) => x.setAttribute("aria-checked", String(x.dataset.mode === savedMode)));
     const saved = safeGet("tlref-cur");
     if (saved && data.cur[saved]) document.querySelectorAll("#curSeg button").forEach((x) => x.setAttribute("aria-checked", String(x.dataset.cur === saved)));
     // Varsayılan hesaplama: son tamamlanmış 365 günlük dönem
