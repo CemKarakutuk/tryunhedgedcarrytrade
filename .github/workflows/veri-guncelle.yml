@@ -1,51 +1,137 @@
 name: Veri güncelle
 
-# data/raw/ klasörüne bir dosya yüklendiğinde (evds, sofr, estr, sonia, tona)
-# kendiliğinden çalışır ve dataset dosyalarını yeniden üretir.
-# Actions sekmesinden "Run workflow" ile elle de başlatılabilir.
+# Fully automated data update.
+#  * Scheduled every weekday at 09:30, 16:30 and 19:30 Türkiye time (UTC+3, no DST)
+#    = 06:30, 13:30 and 16:30 UTC. GitHub may start scheduled runs a few minutes late.
+#  * "Run workflow" (workflow_dispatch) for a manual update; tick "full" for a complete
+#    historical back-fill (merged into the existing data, nothing is ever deleted).
+#  * A push of a file into data/raw/ (old manual route) merges that file into the store.
 #
-# Sonsuz döngü olmaz: bu iş kendi commit'ini GITHUB_TOKEN ile attığı için
-# GitHub o commit'te yeni bir çalıştırma başlatmaz.
+# Order: offline tests -> snapshot of the last valid data -> retrieval (each source
+# independent) -> carry and reserve datasets -> validation against the snapshot ->
+# commit only if data really changed -> request a GitHub Pages build.
+# If validation fails, the snapshot is restored, only the failure note in
+# data/data_status.json is committed, and the run is marked as failed.
 on:
+  schedule:
+    - cron: "30 6,13,16 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      full:
+        description: "Full historical back-fill (merged; no observation is deleted)"
+        type: boolean
+        default: false
+      accept_revisions:
+        description: "Accept large revisions of old observations (only after checking the log)"
+        type: boolean
+        default: false
   push:
+    branches: [main]
     paths:
       - "data/raw/**"
-  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write   # commit updated datasets
+  pages: write      # request a Pages build after the commit
 
 concurrency:
   group: veri-guncelle
   cancel-in-progress: false
 
 jobs:
-  guncelle:
+  update:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONUNBUFFERED: "1"
+      HTTP_TIMEOUT: "60"
+      HTTP_RETRIES: "4"
     steps:
-      - name: Repoyu al
+      - name: Check out
         uses: actions/checkout@v4
 
-      - name: Python kur
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
 
-      - name: Bağımlılıkları kur
-        run: pip install --quiet pandas openpyxl
+      - name: Install dependencies
+        run: pip install --quiet -r requirements.txt
 
-      - name: dataset dosyalarını üret
+      - name: Run tests (offline)
+        id: tests
+        run: python -m pytest -q
+
+      - name: Snapshot last valid data
+        run: cp -r data "$RUNNER_TEMP/data_before"
+
+      - name: Merge uploaded data/raw files
+        if: github.event_name == 'push'
+        run: python scripts/fetch_data.py --import-raw --offline
+
+      - name: Retrieve from official sources
+        if: github.event_name != 'push'
+        env:
+          EVDS_API_KEY: ${{ secrets.EVDS_API_KEY }}
+          FULL: ${{ inputs.full && '--full' || '' }}
+          REVS: ${{ inputs.accept_revisions && '--accept-revisions' || '' }}
+        run: python scripts/fetch_data.py $FULL $REVS
+
+      - name: Build carry dataset
         run: python scripts/update_data.py
 
-      - name: Değişiklikleri commit'le
+      - name: Build reserve datasets
+        run: python scripts/update_reserves.py
+
+      - name: Validate (restore last valid data on failure)
+        id: validate
+        continue-on-error: true
+        env:
+          EVDS_API_KEY: ${{ secrets.EVDS_API_KEY }}   # used only to scan public files for leaks
+        run: python scripts/validate_data.py --baseline "$RUNNER_TEMP/data_before" --restore-on-fail
+
+      - name: Restore last valid data after a crash
+        if: failure() && steps.tests.outcome == 'success'
+        run: |
+          rm -rf data && cp -r "$RUNNER_TEMP/data_before" data
+          echo "::error::Build step failed; previous valid datasets kept and nothing committed."
+
+      - name: Commit changes
+        id: commit
+        if: success()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/dataset.json data/dataset.csv
+          git add -A data/
           if git diff --staged --quiet; then
-            echo "Veride değişiklik yok, commit yapılmadı."
-          else
-            git commit -m "Veri güncellendi ($(date -u +%d.%m.%Y))"
-            git push
-            echo "Veri güncellendi ve yayınlandı."
+            echo "No new observations; nothing committed."
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          git diff --staged --stat
+          git commit -q -m "Veri güncellendi ($(TZ=Europe/Istanbul date +'%d.%m.%Y %H:%M'))"
+          for i in 1 2 3; do
+            git push && break
+            echo "Push rejected; rebasing on the latest main (attempt $i)"
+            git pull --rebase -q
+          done
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Request GitHub Pages build
+        if: steps.commit.outputs.pushed == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Pages is published from the main branch ("Deploy from a branch"). A build is
+          # requested explicitly so the new data go live even if a commit made with
+          # GITHUB_TOKEN does not start one by itself.
+          gh api -X POST "repos/${{ github.repository }}/pages/builds" --jq '.status' \
+            || echo "::warning::Pages build request was refused; the push itself may still trigger a build."
+
+      - name: Report validation failure
+        if: steps.validate.outcome == 'failure'
+        run: |
+          echo "::error::Processed data failed validation. The previous valid data are still published; see the log above."
+          exit 1
