@@ -102,9 +102,10 @@ def parse(payload_text: str, series: list[str], kind: str) -> pd.DataFrame:
     return df.astype("float64")
 
 
-def fetch(series: list[str], start: pd.Timestamp, end: pd.Timestamp, kind: str = "daily",
-          frequency: str | None = None, aggregation: str | None = None) -> pd.DataFrame:
-    key = api_key()
+CHUNK_DAYS = {"daily": 365, "weekly": 3650, "monthly": 10000}
+
+
+def _fetch_one(series, start, end, kind, frequency, aggregation, key) -> pd.DataFrame:
     url = build_url(series, start, end, frequency, aggregation)
     try:
         r = http.get(url, {"key": key, "Accept": "application/json"}, label="EVDS")
@@ -118,3 +119,30 @@ def fetch(series: list[str], start: pd.Timestamp, end: pd.Timestamp, kind: str =
     if "html" in r.content_type:
         raise http.ProviderError("EVDS: HTML page returned instead of JSON")
     return parse(r.text(), series, kind)
+
+
+def fetch(series: list[str], start: pd.Timestamp, end: pd.Timestamp, kind: str = "daily",
+          frequency: str | None = None, aggregation: str | None = None) -> pd.DataFrame:
+    """Long ranges are split into windows: EVDS returns at most about 1,000 rows per
+    request and silently drops the oldest ones beyond that (seen on the first live
+    back-fill, which stopped at January 2023). The newest window must succeed; an
+    older window without data (series not yet published then) is skipped."""
+    key = api_key()
+    step = pd.Timedelta(days=CHUNK_DAYS.get(kind, 365))
+    windows, b = [], pd.Timestamp(end)
+    while b >= start:
+        a = max(pd.Timestamp(start), b - step + pd.Timedelta(days=1))
+        windows.append((a, b))
+        b = a - pd.Timedelta(days=1)
+    parts = []
+    for n, (a, b) in enumerate(windows):          # newest first
+        try:
+            parts.append(_fetch_one(series, a, b, kind, frequency, aggregation, key))
+        except http.ProviderError as e:
+            if n == 0:
+                raise
+            print(f"  EVDS {a:%Y-%m-%d}..{b:%Y-%m-%d}: {e} (older window skipped)")
+        if n + 1 < len(windows):
+            http.sleeper(0.5)
+    df = pd.concat(parts).sort_index()
+    return df[~df.index.duplicated(keep="last")]

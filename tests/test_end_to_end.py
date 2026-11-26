@@ -64,11 +64,35 @@ def fake_api(req, timeout):
     raise AssertionError(url)
 
 
+# State of the store when automation started (26 Nov 2026). The repository data keep
+# growing with every scheduled run, so the test rebuilds this fixed state first and
+# does not depend on whatever the live data look like on the day CI runs.
+FROZEN = {"evds_tlref.csv": "2026-11-24", "evds_fx.csv": "2026-11-26", "sofr.csv": "2026-11-24",
+          "estr.csv": "2026-11-24", "sonia.csv": "2026-11-23", "tona.csv": "2026-11-20",
+          "evds_reserves_weekly.csv": "2026-11-13"}
+
+
+def freeze_store(data):
+    st = data / "store"
+    for p in st.glob("*.csv"):
+        if p.name not in FROZEN:
+            p.unlink()                                   # balance sheet, swaps, IRFCL: back-filled by the run
+            continue
+        df = store.read(p)
+        store.write_frame(p, df[df.index <= FROZEN[p.name]])
+    for name in ("data_status.json", "reserves_daily.csv"):
+        (data / name).unlink(missing_ok=True)
+    fetch_data.main(["--offline"])
+    update_data.main()
+    update_reserves.main()
+
+
 def test_full_automated_run(sandbox, tmp_path, monkeypatch):
     monkeypatch.setenv("EVDS_API_KEY", "TESTKEY")
     monkeypatch.setenv("PIPELINE_TODAY", "2026-11-26")        # freeze the clock for status ages
     monkeypatch.setattr(http, "opener", fake_api)
     FX_BASE.clear()
+    freeze_store(sandbox)
     base = tmp_path / "before"
     shutil.copytree(sandbox, base)
     old = json.loads((sandbox / "dataset.json").read_text(encoding="utf-8"))
@@ -90,7 +114,8 @@ def test_full_automated_run(sandbox, tmp_path, monkeypatch):
     assert all(s["status"] == "current" for s in st["sources"]), [(s["id"], s["status"]) for s in st["sources"]]
     res = json.loads((sandbox / "reserves.json").read_text(encoding="utf-8"))
     assert res["series"]["net"]["dates"][-1] == "2026-11-20"
-    assert res["series"]["domSwap"]["values"][-1] == 4.685
+    daily = pd.read_csv(sandbox / "reserves_daily.csv", index_col=0)
+    assert daily["dom_buy_busd"].iloc[-1] == 4.685
     assert "netExSwapEst" not in res["series"]          # gate stays closed until reviewed
 
     # a second run with nothing new changes no file at all (no empty commits)

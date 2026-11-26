@@ -180,3 +180,22 @@ def test_boj_paging(monkeypatch):
     boj.fetch(pd.Timestamp("2019-01-01"), pd.Timestamp("2019-02-01"))
     assert len(calls) == 2 and "startPosition=2" in calls[1].full_url
     assert "code=STRDCLUCON" in calls[0].full_url and "db=FM01" in calls[0].full_url
+
+
+def test_evds_long_range_split_into_windows(monkeypatch):
+    """EVDS caps responses at ~1,000 rows, so a back-fill is requested year by year;
+    an older window without data is skipped, the newest one must succeed."""
+    monkeypatch.setenv("EVDS_API_KEY", "K")
+    def item(d):
+        return {"Tarih": d, "TP_X": "1.5"}
+    steps = [FakeResp(json.dumps({"items": [item("02-06-2026")]}).encode()),
+             FakeResp(json.dumps({"items": [item("03-06-2025")]}).encode()),
+             FakeResp(json.dumps({"items": []}).encode())]                 # 2024 window: no data yet
+    calls, _ = script(monkeypatch, steps)
+    df = evds.fetch(["TP.X"], pd.Timestamp("2024-01-01"), pd.Timestamp("2026-06-30"))
+    assert len(calls) == 3 and "startDate=" in calls[0].full_url
+    assert "endDate=30-06-2026" in calls[0].full_url and "startDate=01-01-2024" in calls[2].full_url
+    assert df.index.strftime("%Y-%m-%d").tolist() == ["2025-06-03", "2026-06-02"]
+    calls, _ = script(monkeypatch, [FakeResp(json.dumps({"items": []}).encode())])
+    with pytest.raises(http.ProviderError):
+        evds.fetch(["TP.X"], pd.Timestamp("2024-01-01"), pd.Timestamp("2026-06-30"))

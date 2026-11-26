@@ -25,7 +25,7 @@ def test_net_reserves_conversion_and_valuation_date(sandbox):
     assert round(row["net_busd"], 3) == -0.151
     assert row["gross_busd"] == row["gross_musd"] / 1e3
     js = json.loads((sandbox / "reserves.json").read_text(encoding="utf-8"))
-    assert {"net", "gross", "gold", "fx"} <= set(js["series"])
+    assert set(js["series"]) == {"net", "gross"}
     assert all(s["kind"] == "official" for s in js["series"].values())
     assert "netExSwapEst" not in js["series"]                 # inputs missing -> no estimate
     meta = json.loads((sandbox / "reserves_metadata.json").read_text(encoding="utf-8"))
@@ -38,13 +38,11 @@ def test_valuation_rate_uses_last_rate_set_on_or_before_date():
     assert got.tolist() == [10.0, 11.0]
 
 
-def test_swap_unit_identification():
-    raw = pd.Series([13517.0, 3715.0], index=pd.to_datetime(["2026-04-06", "2026-05-26"]))
-    unit, rows = update_reserves.identify_unit(raw, update_reserves.DOM_SWAP_REFS)
-    assert unit == "million USD" and len(rows) == 2
-    unit, _ = update_reserves.identify_unit(raw * 1.3, update_reserves.DOM_SWAP_REFS)
-    assert unit is None                                       # no forced fit
-    assert update_reserves.identify_unit(raw, {"2020-01-01": 1.0})[0] is None
+def test_domestic_swap_reference_comparison():
+    busd = pd.Series([13.517, 3.715], index=pd.to_datetime(["2026-04-06", "2026-05-26"]))
+    rows = update_reserves.compare_refs(busd, update_reserves.DOM_SWAP_REFS)
+    assert [(d.strftime("%Y-%m-%d"), v, r) for d, v, r in rows] == [("2026-04-06", 13.517, 13.517), ("2026-05-26", 3.715, 3.715)]
+    assert update_reserves.compare_refs(busd, {"2020-01-01": 1.0}) == []
 
 
 def test_foreign_swap_monthly_no_lookahead():
@@ -76,8 +74,9 @@ def synthetic_inputs(sandbox, publish, monkeypatch):
 
 def test_estimate_withheld_without_manual_sign_off(sandbox, monkeypatch):
     js = synthetic_inputs(sandbox, False, monkeypatch)
-    assert "domSwap" in js["series"] and js["series"]["domSwap"]["values"][0] == 13.517
-    assert "netExSwapEst" not in js["series"]
+    assert set(js["series"]) == {"gross", "net"}                       # chart offers only these until published
+    daily = pd.read_csv(sandbox / "reserves_daily.csv", index_col=0)
+    assert daily["dom_buy_busd"].iloc[0] == 13.517                     # million USD / 1e3
     meta = json.loads((sandbox / "reserves_metadata.json").read_text(encoding="utf-8"))
     assert "manual review" in meta["swapAdjustedEstimate"]["reason"]
 
@@ -85,6 +84,7 @@ def test_estimate_withheld_without_manual_sign_off(sandbox, monkeypatch):
 def test_estimate_starts_only_when_monthly_data_are_public(sandbox, monkeypatch):
     js = synthetic_inputs(sandbox, True, monkeypatch)
     est = js["series"]["netExSwapEst"]
+    assert set(js["series"]) == {"gross", "net", "netExSwapEst"}
     assert est["kind"] == "estimate" and est["label_en"].startswith("Estimated")
     # December 2025 IRFCL becomes usable on 1 Feb 2026: no estimate before that (no back-filled look-ahead)
     assert est["dates"][0] == "2026-02-02"

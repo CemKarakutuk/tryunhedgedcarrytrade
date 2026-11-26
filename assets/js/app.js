@@ -144,7 +144,7 @@
     } });
   }
   const plotConfig = () => ({ responsive: true, displaylogo: false, locale: isEN() ? "en" : "tr",
-    modeBarButtonsToRemove: ["lasso2d", "select2d", "autoScale2d", "zoomIn2d", "zoomOut2d"] });
+    doubleClick: "reset", modeBarButtonsToRemove: ["lasso2d", "select2d", "autoScale2d", "zoomIn2d", "zoomOut2d"] });
 
   function renderChart() {
     const k = cfg(), c = S.data.cur[k.cur], cur = CUR[k.cur];
@@ -188,7 +188,7 @@
       const R = resSer(), rx = [], ry = [], rc = [], est = R.kind === "estimate";
       // Rezervler bugüne kadar çizilir; tarih ekseni gerekirse son vade tarihinin ötesine uzar
       R.dates.forEach((d, i) => { if (d >= x[0] && R.values[i] != null) { rx.push(d); ry.push(R.values[i]); rc.push(fdate(d)); } });
-      const lab = L(R.label_tr, R.label_en) + (est ? L(" — tahmin, resmî seri değil", " — estimate, not an official series") : "");
+      const lab = L(R.label_tr, R.label_en);
       traces.push({ x: rx, y: ry, yaxis: "y2", customdata: rc, type: "scatter", mode: "lines",
         name: `${lab}, ${L("milyar USD, sağ eksen", "USD bn, right axis")}`,
         line: { color: RES_COLOR, width: 1.6, dash: est ? "dash" : "solid" },
@@ -198,14 +198,15 @@
     const layout = {
       paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
       font: { family: css("--sans") || "IBM Plex Sans, sans-serif", color: ink, size: 12.5 },
-      margin: { l: 58, r: k.showRes ? 62 : 18, t: 48, b: 44 }, hovermode: "x", dragmode: "zoom",
+      margin: { l: 58, r: k.showRes ? 62 : 18, t: 48, b: k.showRes && !narrow ? 72 : 44 }, hovermode: "x", dragmode: "zoom",
       hoverlabel: { bgcolor: "#ffffff", bordercolor: rule, align: "left", namelength: 0, font: { color: ink, size: 12.5 } },
-      // Tek çizgide başlık yeterli; gösterge yalnızca rezerv serisi açıkken, seçim düğmesi ile araç çubuğunun arasında
+      // Tek çizgide başlık yeterli; gösterge yalnızca rezerv serisi açıkken, grafiğin altında
       showlegend: k.showRes && !narrow,
-      legend: { orientation: "h", x: 0.5, xanchor: "center", y: 1, yanchor: "bottom", font: { color: ink, size: 12.5 } },
+      legend: { orientation: "h", x: 0, xanchor: "left", y: -0.075, yanchor: "top", font: { color: ink, size: 12.5 } },
       xaxis: { type: "date", showgrid: true, gridcolor: css("--grid"), griddash: "dot", linecolor: css("--ink-2"), tickcolor: rule,
         showspikes: true, spikemode: "across", spikesnap: "data", spikedash: "dot", spikethickness: 1, spikecolor: css("--ink-2"),
-        hoverformat: L("%d.%m.%Y açılış", "Open: %d %b %Y"), dtick: narrow ? "M24" : "M12", tickformat: "%Y", ticklabelmode: "period" },
+        hoverformat: L("%d.%m.%Y açılış", "Open: %d %b %Y"), ...xTicks(dayDiff(...fullRange(x, k)), narrow),
+        ticks: "outside", ticklen: 5, range: fullRange(x, k), autorange: false },
       // Yakınlaştırma yalnızca tarih ekseninde; y ekseni görünen aralığa göre rescaleY() ile ölçeklenir
       yaxis: { fixedrange: true, showgrid: true, gridcolor: css("--grid"), griddash: "dot", zerolinecolor: ink, zerolinewidth: 1.2,
         range: yRange(x[0], x[x.length - 1]), autorange: false,
@@ -240,7 +241,9 @@
     }
     // Yakınlaştırma korunur
     const prevRange = gd.layout && gd.layout.xaxis && gd.layout.xaxis.autorange !== true && gd.layout.xaxis.range;
-    if (prevRange && S.keepZoom) layout.xaxis.range = prevRange.slice();
+    const zoomed = prevRange && !(S.lastFull && String(prevRange[0]).slice(0, 10) === S.lastFull[0] && String(prevRange[1]).slice(0, 10) === S.lastFull[1]);
+    if (zoomed && S.keepZoom) layout.xaxis.range = prevRange.slice();
+    S.lastFull = fullRange(x, k);
     Plotly.react(gd, traces, layout, plotConfig());
     if (!gd.__bound) {
       gd.on("plotly_relayout", onRelayout);
@@ -284,6 +287,27 @@
     const pad = Math.max((mx - mn) * 0.08, 0.5);
     return [mn - pad, mx + pad];
   }
+  /* Tarih ekseni: etiketler kılavuz çizgilerinin tam altında (yıl/çeyrek/ay başı) */
+  function xTicks(days, narrow) {
+    const base = { tick0: "2019-01-01", ticklabelmode: "instant", tickangle: 0 };
+    if (narrow) {
+      if (days > 1300) return { ...base, dtick: "M24", tickformat: "%Y" };
+      if (days > 700) return { ...base, dtick: "M12", tickformat: "%Y" };
+      if (days > 330) return { ...base, dtick: "M6", tickformat: "%b %Y" };
+      if (days > 120) return { ...base, dtick: "M3", tickformat: "%b %y" };
+      return { ...base, dtick: "M1", tickformat: "%b %y" };
+    }
+    if (days > 900) return { ...base, dtick: "M12", tickformat: "%Y" };
+    if (days > 300) return { ...base, dtick: "M3", tickformat: "%b %Y" };
+    return { ...base, dtick: "M1", tickformat: "%b %Y" };
+  }
+  /* Tüm dönem: veri ocak başında başlıyorsa eksen 1 Ocak'tan başlar ki ilk yıl etiketi de görünsün */
+  function fullRange(x, k) {
+    let start = x[0], end = x[x.length - 1];
+    if (start.slice(5) <= "01-10") start = start.slice(0, 4) + "-01-01";
+    if (k.showRes) { const rd = resSer().dates; if (rd[rd.length - 1] > end) end = rd[rd.length - 1]; }
+    return [start, end];
+  }
   function visible() {
     const gd = $("mainChart"), xa = gd.layout && gd.layout.xaxis, s = S.rows;
     const full = !xa || !xa.range || xa.autorange === true;
@@ -296,9 +320,7 @@
     if (!S.rows.length || !gd.layout) return;
     const [lo, hi] = visible();
     const days = dayDiff(lo, hi), narrow = window.innerWidth < 700;
-    const xt = days > (narrow ? 1300 : 900) ? { "xaxis.dtick": narrow ? "M24" : "M12", "xaxis.tickformat": "%Y", "xaxis.ticklabelmode": "period" }
-      : days > (narrow ? 500 : 300) ? { "xaxis.dtick": "M3", "xaxis.tickformat": "%b %Y", "xaxis.ticklabelmode": "instant" }
-      : { "xaxis.dtick": "M1", "xaxis.tickformat": "%b %Y", "xaxis.ticklabelmode": "instant" };
+    const xt = Object.fromEntries(Object.entries(xTicks(days, narrow)).map(([key, v]) => ["xaxis." + key, v]));
     const y2 = cfg().showRes ? { "yaxis2.range": y2Range(lo, hi), "yaxis2.autorange": false } : {};
     Plotly.relayout(gd, Object.assign({ "yaxis.range": yRange(lo, hi), "yaxis.autorange": false }, y2, xt));
   }
@@ -468,10 +490,10 @@
     const sel = $("resSeries"), box = $("resPick");
     if (!sel) return;
     const ser = (S.res && S.res.series) || {};
-    const keys = ["net", "gross", "netExSwapEst", "gold", "fx", "domSwap", "revSwap", "foreignSwapEst"].filter((k) => ser[k] && ser[k].dates.length);
+    const keys = ["gross", "net", "netExSwapEst"].filter((k) => ser[k] && ser[k].dates.length);
     if (!keys.length) { if (box) box.hidden = true; if ($("showRes")) $("showRes").disabled = true; return; }
     const cur = sel.value || safeGet("tlref-res") || "net";
-    sel.innerHTML = keys.map((k) => `<option value="${k}">${esc(L(ser[k].label_tr, ser[k].label_en))}${ser[k].kind === "estimate" ? L(" (tahmin)", " (estimate)") : ""}</option>`).join("");
+    sel.innerHTML = keys.map((k) => `<option value="${k}">${esc(L(ser[k].label_tr, ser[k].label_en))}</option>`).join("");
     sel.value = keys.includes(cur) ? cur : "net";
     if (box) box.hidden = !$("showRes").checked;
     if ($("resDisclosure")) $("resDisclosure").hidden = !ser.netExSwapEst;

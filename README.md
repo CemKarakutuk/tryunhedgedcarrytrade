@@ -102,8 +102,8 @@ into the store instead of replacing anything, so a short download can no longer 
 `update_reserves.py` contains the analyst methodology (analytical balance sheet A02 − A10,
 minus an estimated foreign swap stock from IRFCL II.2 + II.3, minus domestic buy-side plus
 sell-side swap stocks). The estimate is **not published** until every automatic check
-passes and a human has reviewed the diagnostics printed in the workflow log; then set
-`PUBLISH_SWAP_ESTIMATE: "1"` as an `env` entry of the "Build reserve datasets" step.
+passes and a human has reviewed the diagnostics printed in the workflow log; then
+change `PUBLISH_SWAP_ESTIMATE: "0"` to `"1"` in the "Build reserve datasets" step of the workflow.
 Monthly inputs are used only from the first day of the second month after the reference
 month (no look-ahead) and held constant, never interpolated.
 

@@ -176,6 +176,9 @@ def main(argv=None) -> int:
     ap.add_argument("--accept-revisions", action="store_true", help="accept large revisions of old history")
     ap.add_argument("--strict", action="store_true", help="non-zero exit if any dataset failed")
     args = ap.parse_args(argv)
+    unknown = [k for k in args.only.split(",") if k.strip() and k.strip() not in BY_KEY]
+    if unknown:
+        ap.error(f"unknown dataset(s): {', '.join(unknown)}; valid: {', '.join(BY_KEY)}")
     results = run(args)
     failed = [k for k, r in results.items() if r["result"] in ("unavailable", "validation_failed")]
     if failed:
