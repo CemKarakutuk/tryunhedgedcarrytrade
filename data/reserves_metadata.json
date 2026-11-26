@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-26T22:22:32Z",
+ "generated": "2026-11-26T22:29:02Z",
  "methodologyVersion": "2.0.0",
  "unit": "USD billion",
  "sources": {
@@ -99,7 +99,9 @@
  "sourceUrl": "https://evds3.tcmb.gov.tr/",
  "publicationDates": "not provided by the EVDS API; observation dates are reported",
  "swapAdjustedEstimate": {
-  "published": false,
+  "published": true,
+  "foreignSwapReferenceMonth": "2026-10",
+  "firstDate": "2021-03-01",
   "checks": [
    {
     "check": "inputs: analytical balance sheet A02/A10",
@@ -132,11 +134,8 @@
     "detail": ""
    }
   ],
-  "reason": "awaiting manual review (PUBLISH_SWAP_ESTIMATE is off)",
   "irfclLagRule": "month M usable from day 1 of month M+2",
   "formula": "NetABS - ForeignSwap(M*) - DomBuy + DomSell; ForeignSwap = -(II.2+II.3) - DomNet(month-end)"
  },
- "warnings": [
-  "Swap-adjusted net reserve estimate not published: awaiting manual review (PUBLISH_SWAP_ESTIMATE is off)."
- ]
+ "warnings": []
 }
