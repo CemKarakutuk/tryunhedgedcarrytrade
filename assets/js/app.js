@@ -143,8 +143,16 @@
       shortMonths: MONTHS_TR, date: "%d.%m.%Y", decimal: ",", thousands: ".",
     } });
   }
+  /* Plotly'nin kendi "reset"i ilk çizimdeki aralığa döner (ilk vade 365 gün olduğundan 2026 kesiliyordu);
+     çift tık ve ev düğmesi her zaman o anki seçimin tüm dönemine döner */
   const plotConfig = () => ({ responsive: true, displaylogo: false, locale: isEN() ? "en" : "tr",
-    doubleClick: "reset", modeBarButtonsToRemove: ["lasso2d", "select2d", "autoScale2d", "zoomIn2d", "zoomOut2d"] });
+    doubleClick: false,
+    modeBarButtonsToRemove: ["lasso2d", "select2d", "autoScale2d", "zoomIn2d", "zoomOut2d", "resetScale2d"],
+    modeBarButtonsToAdd: [{ name: L("Tüm dönem", "Full period"), icon: Plotly.Icons.home, click: resetZoom }] });
+  function resetZoom() {
+    if (!S.lastFull) return;
+    Plotly.relayout("mainChart", { "xaxis.range": S.lastFull.slice(), "xaxis.autorange": false });
+  }
 
   function renderChart() {
     const k = cfg(), c = S.data.cur[k.cur], cur = CUR[k.cur];
@@ -248,6 +256,7 @@
     if (!gd.__bound) {
       gd.on("plotly_relayout", onRelayout);
       gd.on("plotly_click", onClick);
+      gd.on("plotly_doubleclick", resetZoom);
       gd.__bound = true;
     }
     if (layout.xaxis.range) rescaleY();
