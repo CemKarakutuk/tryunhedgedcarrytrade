@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-26T22:29:02Z",
+ "generated": "2026-11-27T13:42:02Z",
  "methodologyVersion": "2.0.0",
  "unit": "USD billion",
  "sources": {
@@ -50,16 +50,16 @@
    "nativeUnit": "thousand TRY (expected)",
    "frequency": "daily",
    "firstObs": "2019-01-02",
-   "lastObs": "2026-11-25",
-   "count": 1981
+   "lastObs": "2026-11-26",
+   "count": 1982
   },
   "TP.AB.A10": {
    "description": "Analytical balance sheet: total FX liabilities",
    "nativeUnit": "thousand TRY (expected)",
    "frequency": "daily",
    "firstObs": "2019-01-02",
-   "lastObs": "2026-11-25",
-   "count": 1981
+   "lastObs": "2026-11-26",
+   "count": 1982
   },
   "TP.SWAPTEKTAR.TOTALSTOKALIMYONLU": {
    "description": "Domestic buy-side swap stock",
