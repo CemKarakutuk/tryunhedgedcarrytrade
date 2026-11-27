@@ -333,10 +333,27 @@
     const y2 = cfg().showRes ? { "yaxis2.range": y2Range(lo, hi), "yaxis2.autorange": false } : {};
     Plotly.relayout(gd, Object.assign({ "yaxis.range": yRange(lo, hi), "yaxis.autorange": false }, y2, xt));
   }
+  /* Kaydırma veya eksen ucundan sürükleme verinin dışına taşırsa aralık veri sınırlarına çekilir */
+  const toMs = (v) => Date.parse(String(v).slice(0, 19).replace(" ", "T") + (String(v).length > 10 ? "Z" : "T00:00:00Z"));
+  const isoDay = (ms) => new Date(ms).toISOString().slice(0, 10);
+  function clampRange() {
+    const gd = $("mainChart"), xa = gd.layout && gd.layout.xaxis;
+    if (!S.lastFull || !xa || !xa.range) return false;
+    const f0 = toMs(S.lastFull[0]), f1 = toMs(S.lastFull[1]);
+    let a = toMs(xa.range[0]), b = toMs(xa.range[1]);
+    if (isoDay(a) >= S.lastFull[0] && isoDay(b) <= S.lastFull[1]) return false;
+    const w = b - a;
+    if (w >= f1 - f0) { a = f0; b = f1; }
+    else if (a < f0) { a = f0; b = f0 + w; }
+    else { b = f1; a = f1 - w; }
+    Plotly.relayout(gd, { "xaxis.range": [isoDay(a), isoDay(b)], "xaxis.autorange": false });
+    return true;
+  }
   function onRelayout(ev) {
     // Kendi y ekseni ve etiket güncellemelerimiz de bu olayı tetikler; yalnızca tarih aralığı değişince ölçekle
     const xKeys = Object.keys(ev || {}).some((key) => key.startsWith("xaxis.range") || key === "xaxis.autorange");
     if (!xKeys) return;
+    if (clampRange()) return;           // sınırlanmış aralık yeni bir relayout olayı üretir
     rescaleY();
     updateStats();
   }
