@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-27T13:42:02Z",
+ "generated": "2026-11-27T16:55:29Z",
  "methodologyVersion": "2.0.0",
  "unit": "USD billion",
  "sources": {
@@ -67,8 +67,8 @@
    "nativeUnit": "million USD",
    "conversion": "/ 1,000",
    "firstObs": "2021-01-04",
-   "lastObs": "2026-11-26",
-   "count": 1481
+   "lastObs": "2026-11-27",
+   "count": 1482
   },
   "TP.SWAPTEKTAR.TOTALSTOKSATIMYONLU": {
    "description": "Domestic sell-side (reverse) swap stock",
@@ -76,8 +76,8 @@
    "nativeUnit": "million USD",
    "conversion": "/ 1,000",
    "firstObs": "2021-01-04",
-   "lastObs": "2026-11-26",
-   "count": 1481
+   "lastObs": "2026-11-27",
+   "count": 1482
   },
   "TP.DOVVARNC.K14": {
    "description": "IRFCL II.2 forwards, futures and swaps (net)",

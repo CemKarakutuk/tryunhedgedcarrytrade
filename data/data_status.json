@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-27T13:42:01Z",
+ "generated": "2026-11-27T16:55:29Z",
  "schema": 1,
  "sources": [
   {
@@ -18,8 +18,8 @@
    "firstObs": "2019-01-02",
    "lastObs": "2026-11-26",
    "count": 1958,
-   "lastAttempt": "2026-11-27T13:40:25Z",
-   "lastSuccess": "2026-11-27T13:40:25Z",
+   "lastAttempt": "2026-11-27T16:55:16Z",
+   "lastSuccess": "2026-11-27T16:55:16Z",
    "message": "",
    "ageDays": 1,
    "status": "current"
@@ -40,8 +40,8 @@
    "firstObs": "2019-01-02",
    "lastObs": "2026-11-25",
    "count": 1973,
-   "lastAttempt": "2026-11-27T13:41:10Z",
-   "lastSuccess": "2026-11-27T13:41:10Z",
+   "lastAttempt": "2026-11-27T16:55:18Z",
+   "lastSuccess": "2026-11-27T16:55:18Z",
    "message": "",
    "ageDays": 2,
    "status": "current"
@@ -62,8 +62,8 @@
    "firstObs": "2019-10-01",
    "lastObs": "2026-11-26",
    "count": 1834,
-   "lastAttempt": "2026-11-27T13:41:12Z",
-   "lastSuccess": "2026-11-27T13:41:12Z",
+   "lastAttempt": "2026-11-27T16:55:19Z",
+   "lastSuccess": "2026-11-27T16:55:19Z",
    "message": "",
    "ageDays": 1,
    "status": "current"
@@ -84,8 +84,8 @@
    "firstObs": "2019-01-02",
    "lastObs": "2026-11-25",
    "count": 1997,
-   "lastAttempt": "2026-11-27T13:41:15Z",
-   "lastSuccess": "2026-11-27T13:41:15Z",
+   "lastAttempt": "2026-11-27T16:55:22Z",
+   "lastSuccess": "2026-11-27T16:55:22Z",
    "message": "",
    "ageDays": 2,
    "status": "current"
@@ -106,8 +106,8 @@
    "firstObs": "2019-01-04",
    "lastObs": "2026-11-25",
    "count": 1924,
-   "lastAttempt": "2026-11-27T13:41:16Z",
-   "lastSuccess": "2026-11-27T13:41:16Z",
+   "lastAttempt": "2026-11-27T16:55:23Z",
+   "lastSuccess": "2026-11-27T16:55:23Z",
    "message": "",
    "ageDays": 2,
    "status": "current"
@@ -129,8 +129,8 @@
    "firstObs": "2019-01-02",
    "lastObs": "2026-11-30",
    "count": 1984,
-   "lastAttempt": "2026-11-27T13:40:45Z",
-   "lastSuccess": "2026-11-27T13:40:45Z",
+   "lastAttempt": "2026-11-27T16:55:17Z",
+   "lastSuccess": "2026-11-27T16:55:17Z",
    "message": "",
    "ageDays": 0,
    "status": "current"
@@ -152,8 +152,8 @@
    "firstObs": "2019-01-02",
    "lastObs": "2026-11-30",
    "count": 1984,
-   "lastAttempt": "2026-11-27T13:40:45Z",
-   "lastSuccess": "2026-11-27T13:40:45Z",
+   "lastAttempt": "2026-11-27T16:55:17Z",
+   "lastSuccess": "2026-11-27T16:55:17Z",
    "message": "",
    "ageDays": 0,
    "status": "current"
@@ -175,8 +175,8 @@
    "firstObs": "2019-01-02",
    "lastObs": "2026-11-30",
    "count": 1984,
-   "lastAttempt": "2026-11-27T13:40:45Z",
-   "lastSuccess": "2026-11-27T13:40:45Z",
+   "lastAttempt": "2026-11-27T16:55:17Z",
+   "lastSuccess": "2026-11-27T16:55:17Z",
    "message": "",
    "ageDays": 0,
    "status": "current"
@@ -198,8 +198,8 @@
    "firstObs": "2019-01-02",
    "lastObs": "2026-11-30",
    "count": 1984,
-   "lastAttempt": "2026-11-27T13:40:45Z",
-   "lastSuccess": "2026-11-27T13:40:45Z",
+   "lastAttempt": "2026-11-27T16:55:17Z",
+   "lastSuccess": "2026-11-27T16:55:17Z",
    "message": "",
    "ageDays": 0,
    "status": "current"
@@ -221,8 +221,8 @@
    "firstObs": "2019-01-02",
    "lastObs": "2026-11-26",
    "count": 1982,
-   "lastAttempt": "2026-11-27T13:41:21Z",
-   "lastSuccess": "2026-11-27T13:41:21Z",
+   "lastAttempt": "2026-11-27T16:55:26Z",
+   "lastSuccess": "2026-11-27T16:55:26Z",
    "message": "",
    "ageDays": 1,
    "status": "current"
@@ -246,8 +246,8 @@
    "firstObs": "2019-01-04",
    "lastObs": "2026-11-20",
    "count": 412,
-   "lastAttempt": "2026-11-27T13:41:17Z",
-   "lastSuccess": "2026-11-27T13:41:17Z",
+   "lastAttempt": "2026-11-27T16:55:25Z",
+   "lastSuccess": "2026-11-27T16:55:25Z",
    "message": "",
    "ageDays": 7,
    "status": "current"
@@ -267,12 +267,12 @@
    "expectedLag_tr": "Ertesi iş günü",
    "expectedLag_en": "Next business day",
    "firstObs": "2021-01-04",
-   "lastObs": "2026-11-26",
-   "count": 1481,
-   "lastAttempt": "2026-11-27T13:41:41Z",
-   "lastSuccess": "2026-11-27T13:41:41Z",
+   "lastObs": "2026-11-27",
+   "count": 1482,
+   "lastAttempt": "2026-11-27T16:55:26Z",
+   "lastSuccess": "2026-11-27T16:55:26Z",
    "message": "",
-   "ageDays": 1,
+   "ageDays": 0,
    "status": "current"
   },
   {
@@ -292,8 +292,8 @@
    "firstObs": "2019-01-31",
    "lastObs": "2026-10-31",
    "count": 94,
-   "lastAttempt": "2026-11-27T13:42:00Z",
-   "lastSuccess": "2026-11-27T13:42:00Z",
+   "lastAttempt": "2026-11-27T16:55:28Z",
+   "lastSuccess": "2026-11-27T16:55:28Z",
    "message": "",
    "ageDays": 27,
    "status": "current"
