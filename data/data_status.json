@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-26T22:22:31Z",
+ "generated": "2026-11-27T08:45:56Z",
  "schema": 1,
  "sources": [
   {
@@ -16,10 +16,10 @@
    "expectedLag_tr": "Aynı gün belirlenir, EVDS'de genellikle ertesi iş günü",
    "expectedLag_en": "Fixed same day; usually in EVDS next business day",
    "firstObs": "2019-01-02",
-   "lastObs": "2026-11-25",
-   "count": 1957,
-   "lastAttempt": "2026-11-26T22:21:10Z",
-   "lastSuccess": "2026-11-26T22:21:10Z",
+   "lastObs": "2026-11-26",
+   "count": 1958,
+   "lastAttempt": "2026-11-27T08:45:43Z",
+   "lastSuccess": "2026-11-27T08:45:43Z",
    "message": "",
    "ageDays": 1,
    "status": "current"
@@ -40,10 +40,10 @@
    "firstObs": "2019-01-02",
    "lastObs": "2026-11-24",
    "count": 1972,
-   "lastAttempt": "2026-11-26T22:21:48Z",
-   "lastSuccess": "2026-11-26T22:21:48Z",
+   "lastAttempt": "2026-11-27T08:45:46Z",
+   "lastSuccess": "2026-11-27T08:45:46Z",
    "message": "",
-   "ageDays": 2,
+   "ageDays": 3,
    "status": "current"
   },
   {
@@ -60,10 +60,10 @@
    "expectedLag_tr": "Ertesi TARGET2 iş günü 08:00 (CET)",
    "expectedLag_en": "Next TARGET2 business day, 08:00 CET",
    "firstObs": "2019-10-01",
-   "lastObs": "2026-11-25",
-   "count": 1833,
-   "lastAttempt": "2026-11-26T22:21:50Z",
-   "lastSuccess": "2026-11-26T22:21:50Z",
+   "lastObs": "2026-11-26",
+   "count": 1834,
+   "lastAttempt": "2026-11-27T08:45:47Z",
+   "lastSuccess": "2026-11-27T08:45:47Z",
    "message": "",
    "ageDays": 1,
    "status": "current"
@@ -84,10 +84,10 @@
    "firstObs": "2019-01-02",
    "lastObs": "2026-11-24",
    "count": 1996,
-   "lastAttempt": "2026-11-26T22:21:51Z",
-   "lastSuccess": "2026-11-26T22:21:51Z",
+   "lastAttempt": "2026-11-27T08:45:50Z",
+   "lastSuccess": "2026-11-27T08:45:50Z",
    "message": "",
-   "ageDays": 2,
+   "ageDays": 3,
    "status": "current"
   },
   {
@@ -104,10 +104,10 @@
    "expectedLag_tr": "Ertesi Tokyo iş günü",
    "expectedLag_en": "Next Tokyo business day",
    "firstObs": "2019-01-04",
-   "lastObs": "2026-11-24",
-   "count": 1923,
-   "lastAttempt": "2026-11-26T22:21:52Z",
-   "lastSuccess": "2026-11-26T22:21:52Z",
+   "lastObs": "2026-11-25",
+   "count": 1924,
+   "lastAttempt": "2026-11-27T08:45:50Z",
+   "lastSuccess": "2026-11-27T08:45:50Z",
    "message": "",
    "ageDays": 2,
    "status": "current"
@@ -129,8 +129,8 @@
    "firstObs": "2019-01-02",
    "lastObs": "2026-11-27",
    "count": 1983,
-   "lastAttempt": "2026-11-26T22:21:25Z",
-   "lastSuccess": "2026-11-26T22:21:25Z",
+   "lastAttempt": "2026-11-27T08:45:45Z",
+   "lastSuccess": "2026-11-27T08:45:45Z",
    "message": "",
    "ageDays": 0,
    "status": "current"
@@ -152,8 +152,8 @@
    "firstObs": "2019-01-02",
    "lastObs": "2026-11-27",
    "count": 1983,
-   "lastAttempt": "2026-11-26T22:21:25Z",
-   "lastSuccess": "2026-11-26T22:21:25Z",
+   "lastAttempt": "2026-11-27T08:45:45Z",
+   "lastSuccess": "2026-11-27T08:45:45Z",
    "message": "",
    "ageDays": 0,
    "status": "current"
@@ -175,8 +175,8 @@
    "firstObs": "2019-01-02",
    "lastObs": "2026-11-27",
    "count": 1983,
-   "lastAttempt": "2026-11-26T22:21:25Z",
-   "lastSuccess": "2026-11-26T22:21:25Z",
+   "lastAttempt": "2026-11-27T08:45:45Z",
+   "lastSuccess": "2026-11-27T08:45:45Z",
    "message": "",
    "ageDays": 0,
    "status": "current"
@@ -198,8 +198,8 @@
    "firstObs": "2019-01-02",
    "lastObs": "2026-11-27",
    "count": 1983,
-   "lastAttempt": "2026-11-26T22:21:25Z",
-   "lastSuccess": "2026-11-26T22:21:25Z",
+   "lastAttempt": "2026-11-27T08:45:45Z",
+   "lastSuccess": "2026-11-27T08:45:45Z",
    "message": "",
    "ageDays": 0,
    "status": "current"
@@ -221,10 +221,10 @@
    "firstObs": "2019-01-02",
    "lastObs": "2026-11-25",
    "count": 1981,
-   "lastAttempt": "2026-11-26T22:21:55Z",
-   "lastSuccess": "2026-11-26T22:21:55Z",
+   "lastAttempt": "2026-11-27T08:45:52Z",
+   "lastSuccess": "2026-11-27T08:45:52Z",
    "message": "",
-   "ageDays": 1,
+   "ageDays": 2,
    "status": "current"
   },
   {
@@ -246,10 +246,10 @@
    "firstObs": "2019-01-04",
    "lastObs": "2026-11-20",
    "count": 412,
-   "lastAttempt": "2026-11-26T22:21:53Z",
-   "lastSuccess": "2026-11-26T22:21:53Z",
+   "lastAttempt": "2026-11-27T08:45:51Z",
+   "lastSuccess": "2026-11-27T08:45:51Z",
    "message": "",
-   "ageDays": 6,
+   "ageDays": 7,
    "status": "current"
   },
   {
@@ -269,10 +269,10 @@
    "firstObs": "2021-01-04",
    "lastObs": "2026-11-26",
    "count": 1481,
-   "lastAttempt": "2026-11-26T22:22:13Z",
-   "lastSuccess": "2026-11-26T22:22:13Z",
+   "lastAttempt": "2026-11-27T08:45:54Z",
+   "lastSuccess": "2026-11-27T08:45:54Z",
    "message": "",
-   "ageDays": 0,
+   "ageDays": 1,
    "status": "current"
   },
   {
@@ -292,10 +292,10 @@
    "firstObs": "2019-01-31",
    "lastObs": "2026-10-31",
    "count": 94,
-   "lastAttempt": "2026-11-26T22:22:30Z",
-   "lastSuccess": "2026-11-26T22:22:30Z",
+   "lastAttempt": "2026-11-27T08:45:55Z",
+   "lastSuccess": "2026-11-27T08:45:55Z",
    "message": "",
-   "ageDays": 26,
+   "ageDays": 27,
    "status": "current"
   }
  ]
